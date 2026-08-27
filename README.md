@@ -9,7 +9,7 @@ LightFlow is a conservative Android performance profile for rooted devices. It k
 - Allows normal background execution for common notification apps, including WhatsApp and WhatsApp Business.
 - Keeps established Wi-Fi available during sleep and Wi-Fi scanning available for connection recovery.
 - Leaves Doze, thermal limits, CPU governors, SELinux, ZRAM, and vendor performance properties alone.
-- Provides an optional Magisk action that compiles only Facebook and WhatsApp with their existing speed profiles.
+- Provides an optional Magisk action that compiles only Facebook, WhatsApp, LinkedIn, and Reddit with their existing speed profiles.
 
 The notification policy is intentionally a compromise: normal background delivery is allowed, but notification apps are not placed on the permanent Doze whitelist. This protects battery better than keeping every app awake. Android, the network, and the app’s own servers can still delay notifications, so no module can guarantee delivery under every condition.
 
@@ -22,9 +22,9 @@ The notification policy is intentionally a compromise: normal background deliver
 
 The ZIP is a Magisk-module flashable package. It is not intended for flashing from a custom recovery.
 
-## Optional Facebook and WhatsApp optimization
+## Optional app optimization
 
-After installation, use the module’s Magisk action button once while the device is cool or charging. It runs targeted `speed-profile` compilation for Facebook and WhatsApp only. It does not compile all apps and does not run a resident optimizer loop.
+After installation, use the module’s Magisk action button once while the device is cool or charging. It runs targeted `speed-profile` compilation for Facebook, WhatsApp, LinkedIn, and Reddit only. It does not compile all apps and does not run a resident optimizer loop.
 
 ## LSPosed guidance
 

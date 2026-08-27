@@ -3,7 +3,12 @@
 LOG=/data/adb/lightflow.log
 failed=0
 
-for pkg in com.facebook.katana com.whatsapp com.whatsapp.w4b; do
+for pkg in \
+  com.facebook.katana \
+  com.whatsapp \
+  com.whatsapp.w4b \
+  com.linkedin.android \
+  com.reddit.frontpage; do
   pm path "$pkg" >/dev/null 2>&1 || continue
   echo "Compiling only $pkg with its existing speed profile..."
   if cmd package compile -m speed-profile -f "$pkg" >/dev/null 2>&1; then
