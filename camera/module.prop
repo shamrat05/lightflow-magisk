@@ -1,0 +1,6 @@
+id=ahead_of_modern_time
+name=Ahead of Modern Time Camera Capture
+version=1.0.0
+versionCode=1
+author=Codex
+description=Targeted camera launch and capture responsiveness for OEM camera apps; no unsafe sensor, thermal, or permission overrides.

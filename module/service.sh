@@ -6,6 +6,7 @@
 MODDIR=${0%/*}
 LOG=/data/adb/lightflow.log
 MARKER=/data/adb/lightflow
+NOTIFICATION_PACKAGES="$MODDIR/notification-packages.conf"
 
 mkdir -p "$MARKER"
 sleep 20
@@ -23,17 +24,13 @@ settings put global animator_duration_scale 0.5 >/dev/null 2>&1
 
 # These apps may use normal background execution so FCM/app notifications are not
 # intentionally blocked. Do not add them to the Doze whitelist: that costs battery.
-for pkg in \
-  com.whatsapp \
-  com.facebook.orca \
-  com.facebook.katana \
-  com.google.android.gm \
-  org.telegram.messenger \
-  org.signal.securesms \
-  com.microsoft.office.outlook; do
+while IFS= read -r pkg; do
+  case "$pkg" in
+    ''|\#*) continue ;;
+  esac
   pm path "$pkg" >/dev/null 2>&1 || continue
   cmd appops set "$pkg" RUN_ANY_IN_BACKGROUND allow >/dev/null 2>&1
   cmd appops set "$pkg" RUN_IN_BACKGROUND allow >/dev/null 2>&1
-done
+done < "$NOTIFICATION_PACKAGES"
 
 printf '%s LightFlow active: adaptive refresh, 0.5x animation, notification-safe appops\n' "$(date '+%F %T')" >> "$LOG"
