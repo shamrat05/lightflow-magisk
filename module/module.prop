@@ -1,0 +1,6 @@
+id=lightflow
+name=LightFlow Conservative Performance
+version=1.0.0
+versionCode=1
+author=Codex
+description=Low-overhead adaptive refresh and notification-safe tuning; no thermal spoofing, turbo forcing, or blanket app killing.
