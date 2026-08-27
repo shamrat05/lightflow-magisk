@@ -7,6 +7,7 @@ LightFlow is a conservative Android performance profile for rooted devices. It k
 - Applies 60–120 Hz adaptive refresh with a 90 Hz preference after boot.
 - Uses 0.5× Android animation scales for a quicker-feeling interface.
 - Allows normal background execution for common notification apps, including WhatsApp and WhatsApp Business.
+- Keeps established Wi-Fi available during sleep and Wi-Fi scanning available for connection recovery.
 - Leaves Doze, thermal limits, CPU governors, SELinux, ZRAM, and vendor performance properties alone.
 - Provides an optional Magisk action that compiles only Facebook and WhatsApp with their existing speed profiles.
 
@@ -28,6 +29,10 @@ After installation, use the module’s Magisk action button once while the devic
 ## LSPosed guidance
 
 LightFlow does not modify LSPosed. Hooks cannot be made free of CPU or battery cost without removing their work. Keep each module scoped only to the apps that need it; avoid hooking SystemUI, the launcher, the camera, or every app globally. For WhatsApp, test `com.wmods.wppenhacer` separately if startup, scrolling, heat, or battery worsens. This preserves normal module behavior while giving a clean A/B test.
+
+## Network behavior
+
+LightFlow keeps Android/Oplus Wi-Fi validation and roaming in control. It does not hard-code MTU, DNS servers, TCP congestion control, or firewall rules. The tested device previously had an `mtu-fix` module that forced Wi-Fi MTU 1400; that module was removed because the interface and router negotiate 1500 correctly. A module that claims universal internet-speed gains through MTU or DNS forcing is usually network-dependent and can reduce speed or break VPNs.
 
 ## Uninstall / rollback
 

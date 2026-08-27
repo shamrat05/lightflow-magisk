@@ -22,6 +22,12 @@ settings put global window_animation_scale 0.5 >/dev/null 2>&1
 settings put global transition_animation_scale 0.5 >/dev/null 2>&1
 settings put global animator_duration_scale 0.5 >/dev/null 2>&1
 
+# Keep an established Wi-Fi link available during doze so push delivery and
+# Wi-Fi-to-cellular recovery are not delayed. Android/Oplus still controls
+# roaming and validation. No MTU, DNS, congestion-control, or iptables hacks.
+settings put global wifi_sleep_policy 2 >/dev/null 2>&1
+settings put global wifi_scan_always_enabled 1 >/dev/null 2>&1
+
 # These apps may use normal background execution so FCM/app notifications are not
 # intentionally blocked. Do not add them to the Doze whitelist: that costs battery.
 while IFS= read -r pkg; do
