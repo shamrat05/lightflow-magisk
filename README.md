@@ -7,11 +7,11 @@ LightFlow is a conservative Android performance profile for rooted devices. It k
 - Applies 60–120 Hz adaptive refresh with a 90 Hz preference after boot.
 - Uses 0.5× Android animation scales for a quicker-feeling interface.
 - Allows normal background execution for common notification apps, including WhatsApp and WhatsApp Business.
-- Keeps established Wi-Fi available during sleep and Wi-Fi scanning available for connection recovery.
+- Keeps established Wi-Fi available during sleep, while disabling Wi-Fi scanning when Wi-Fi is off.
 - Leaves Doze, thermal limits, CPU governors, SELinux, ZRAM, and vendor performance properties alone.
 - Provides an optional Magisk action that compiles only Facebook, WhatsApp, LinkedIn, and Reddit with their existing speed profiles.
 
-The notification policy is intentionally a compromise: normal background delivery is allowed, but notification apps are not placed on the permanent Doze whitelist. This protects battery better than keeping every app awake. Android, the network, and the app’s own servers can still delay notifications, so no module can guarantee delivery under every condition.
+The notification policy is intentionally a compromise: normal background delivery is allowed, but notification apps are not placed on the permanent Doze whitelist. This protects battery better than keeping every app awake. Wi-Fi-off scanning is also disabled because it does not help an active connection or FCM delivery, but can wake the radio for network discovery and location. Android, the network, and the app’s own servers can still delay notifications, so no module can guarantee delivery under every condition.
 
 ## Install
 
@@ -36,7 +36,7 @@ LightFlow keeps Android/Oplus Wi-Fi validation and roaming in control. It does n
 
 ## Uninstall / rollback
 
-Disable or remove the module in Magisk and reboot. Its uninstall script restores the app-ops it touched. Refresh-rate and animation settings are left at the values currently selected by the user.
+Disable or remove the module in Magisk and reboot. Its uninstall script restores the app-ops and Wi-Fi-off scan setting it touched. Refresh-rate, animation, and Wi-Fi sleep settings are left at the values currently selected by the user.
 
 ## Build locally
 
