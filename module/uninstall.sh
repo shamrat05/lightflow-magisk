@@ -5,6 +5,7 @@ MARKER=/data/adb/lightflow
 WIFI_SCAN_STATE="$MARKER/wifi_scan_always_enabled"
 DISABLED_PACKAGES="$MODDIR/disabled-background-packages.conf"
 DISABLED_STATE_DIR="$MARKER/disabled-packages"
+MEMORY_STATE_DIR="$MARKER/memory"
 
 # Restore only the app-ops this module touches. Refresh and animation settings
 # are intentionally left at the user's current values.
@@ -28,6 +29,15 @@ while IFS= read -r pkg; do
   rm -f "$state_file"
 done < "$DISABLED_PACKAGES"
 rmdir "$DISABLED_STATE_DIR" >/dev/null 2>&1
+
+if [ -f "$MEMORY_STATE_DIR/mglru_enabled" ] && [ -w /sys/kernel/mm/lru_gen/enabled ]; then
+  cat "$MEMORY_STATE_DIR/mglru_enabled" > /sys/kernel/mm/lru_gen/enabled
+fi
+if [ -f "$MEMORY_STATE_DIR/page_cluster" ] && [ -w /proc/sys/vm/page-cluster ]; then
+  cat "$MEMORY_STATE_DIR/page_cluster" > /proc/sys/vm/page-cluster
+fi
+rm -f "$MEMORY_STATE_DIR/mglru_enabled" "$MEMORY_STATE_DIR/page_cluster"
+rmdir "$MEMORY_STATE_DIR" >/dev/null 2>&1
 
 if [ -f "$WIFI_SCAN_STATE" ]; then
   wifi_scan_state=$(head -n 1 "$WIFI_SCAN_STATE")

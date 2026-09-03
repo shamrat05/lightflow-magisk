@@ -10,9 +10,11 @@ NOTIFICATION_PACKAGES="$MODDIR/notification-packages.conf"
 DISABLED_PACKAGES="$MODDIR/disabled-background-packages.conf"
 WIFI_SCAN_STATE="$MARKER/wifi_scan_always_enabled"
 DISABLED_STATE_DIR="$MARKER/disabled-packages"
+MEMORY_STATE_DIR="$MARKER/memory"
 
 mkdir -p "$MARKER"
 mkdir -p "$DISABLED_STATE_DIR"
+mkdir -p "$MEMORY_STATE_DIR"
 
 # Magisk runs service.sh at late_start in parallel with Android boot. Do not
 # add a fixed wait here: framework services are already available, and a
@@ -56,6 +58,29 @@ if [ ! -f "$WIFI_SCAN_STATE" ]; then
 fi
 settings put global wifi_scan_always_enabled 0 >/dev/null 2>&1
 
+# RMX3741 has 8 GB RAM with LZ4 ZRAM. Keep the kernel's modern, low-overhead
+# reclaim path available without changing the vendor LMKD thresholds, ZRAM
+# size, or swappiness. Those vendor values already favor app retention; making
+# them more aggressive would trade multitasking for compression CPU and heat.
+memory_total_kb=$(awk '/MemTotal:/ { print $2 }' /proc/meminfo)
+if [ "$memory_total_kb" -ge 6000000 ] && [ "$memory_total_kb" -le 12000000 ]; then
+  if [ -w /sys/kernel/mm/lru_gen/enabled ]; then
+    mglru_state_file="$MEMORY_STATE_DIR/mglru_enabled"
+    if [ ! -f "$mglru_state_file" ]; then
+      cat /sys/kernel/mm/lru_gen/enabled > "$mglru_state_file"
+    fi
+    printf '%s\n' 0x3 > /sys/kernel/mm/lru_gen/enabled
+  fi
+
+  if [ -w /proc/sys/vm/page-cluster ]; then
+    page_cluster_state_file="$MEMORY_STATE_DIR/page_cluster"
+    if [ ! -f "$page_cluster_state_file" ]; then
+      cat /proc/sys/vm/page-cluster > "$page_cluster_state_file"
+    fi
+    printf '%s\n' 0 > /proc/sys/vm/page-cluster
+  fi
+fi
+
 # These apps may use normal background execution so FCM/app notifications are not
 # intentionally blocked. Do not add them to the Doze whitelist: that costs battery.
 while IFS= read -r pkg; do
@@ -88,4 +113,4 @@ while IFS= read -r pkg; do
   am force-stop "$pkg" >/dev/null 2>&1
 done < "$DISABLED_PACKAGES"
 
-printf '%s LightFlow active: adaptive refresh, notification-safe appops, optional Meta companions disabled\n' "$(date '+%F %T')" >> "$LOG"
+printf '%s LightFlow active: adaptive refresh, low-overhead memory reclaim, notification-safe appops, optional Meta companions disabled\n' "$(date '+%F %T')" >> "$LOG"

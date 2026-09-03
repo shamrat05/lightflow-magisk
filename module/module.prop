@@ -1,6 +1,6 @@
 id=lightflow
 name=LightFlow Conservative Performance
-version=1.5.0
-versionCode=7
+version=1.6.0
+versionCode=8
 author=Codex
-description=Low-overhead adaptive refresh, notification-safe delivery, and network continuity without off-state Wi-Fi scanning; disables optional Meta background companions only.
+description=Low-overhead multitasking, adaptive refresh, and notification-safe delivery; no storage swap, RAM cleaner, thermal spoofing, or blanket app killing.
