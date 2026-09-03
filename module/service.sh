@@ -7,9 +7,12 @@ MODDIR=${0%/*}
 LOG=/data/adb/lightflow.log
 MARKER=/data/adb/lightflow
 NOTIFICATION_PACKAGES="$MODDIR/notification-packages.conf"
+DISABLED_PACKAGES="$MODDIR/disabled-background-packages.conf"
 WIFI_SCAN_STATE="$MARKER/wifi_scan_always_enabled"
+DISABLED_STATE_DIR="$MARKER/disabled-packages"
 
 mkdir -p "$MARKER"
+mkdir -p "$DISABLED_STATE_DIR"
 
 # Magisk runs service.sh at late_start in parallel with Android boot. Do not
 # add a fixed wait here: framework services are already available, and a
@@ -64,4 +67,25 @@ while IFS= read -r pkg; do
   cmd appops set "$pkg" RUN_IN_BACKGROUND allow >/dev/null 2>&1
 done < "$NOTIFICATION_PACKAGES"
 
-printf '%s LightFlow active: adaptive refresh, 0.5x animation, notification-safe appops\n' "$(date '+%F %T')" >> "$LOG"
+# Disable only optional Meta companion packages. The primary Facebook apps are
+# intentionally excluded: their normal background operation is needed for
+# notifications, media upload, and a responsive next launch. Save the initial
+# state once so uninstall restores only packages this module disabled itself.
+while IFS= read -r pkg; do
+  case "$pkg" in
+    ''|\#*) continue ;;
+  esac
+  pm path "$pkg" >/dev/null 2>&1 || continue
+  state_file="$DISABLED_STATE_DIR/$pkg"
+  if [ ! -f "$state_file" ]; then
+    if pm list packages -d "$pkg" | grep -qx "package:$pkg"; then
+      printf '%s\n' disabled > "$state_file"
+    else
+      printf '%s\n' enabled > "$state_file"
+    fi
+  fi
+  pm disable-user --user 0 "$pkg" >/dev/null 2>&1
+  am force-stop "$pkg" >/dev/null 2>&1
+done < "$DISABLED_PACKAGES"
+
+printf '%s LightFlow active: adaptive refresh, notification-safe appops, optional Meta companions disabled\n' "$(date '+%F %T')" >> "$LOG"
