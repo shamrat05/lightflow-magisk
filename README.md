@@ -8,6 +8,7 @@ LightFlow is a conservative Android performance profile for rooted devices. It k
 - Uses 0.5× Android animation scales for a quicker-feeling interface.
 - Allows normal background execution for common notification apps, including WhatsApp and WhatsApp Business.
 - Keeps established Wi-Fi available during sleep, while disabling Wi-Fi scanning when Wi-Fi is off.
+- Applies its late-start profile without a fixed boot-time delay.
 - Leaves Doze, thermal limits, CPU governors, SELinux, ZRAM, and vendor performance properties alone.
 - Provides an optional Magisk action that compiles only Facebook, WhatsApp, LinkedIn, and Reddit with their existing speed profiles.
 

@@ -10,7 +10,10 @@ NOTIFICATION_PACKAGES="$MODDIR/notification-packages.conf"
 WIFI_SCAN_STATE="$MARKER/wifi_scan_always_enabled"
 
 mkdir -p "$MARKER"
-sleep 20
+
+# Magisk runs service.sh at late_start in parallel with Android boot. Do not
+# add a fixed wait here: framework services are already available, and a
+# delay only postpones the profile without improving its reliability.
 
 # Keep the responsive 90 Hz preference while retaining 60 Hz idle and 120 Hz headroom.
 settings put system min_refresh_rate 60 >/dev/null 2>&1

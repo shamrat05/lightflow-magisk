@@ -1,6 +1,6 @@
 id=lightflow
 name=LightFlow Conservative Performance
-version=1.4.0
-versionCode=5
+version=1.4.1
+versionCode=6
 author=Codex
 description=Low-overhead adaptive refresh, notification-safe delivery, and network continuity without off-state Wi-Fi scanning; no thermal spoofing, turbo forcing, or blanket app killing.
