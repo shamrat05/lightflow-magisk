@@ -3,6 +3,8 @@
 MODDIR=${0%/*}
 cat "$MODDIR/module.prop"
 echo "Boot completed: $(getprop sys.boot_completed)"
+echo "Automatic optimization job and constraints:"
+dumpsys jobscheduler | awk '/^  JOB / {show = /android\/com.android.server.(art.BackgroundDexoptJobService|pm.BackgroundDexOptService)/} show {print}'
 echo "Refresh preferences (not measured FPS):"
 for key in min_refresh_rate peak_refresh_rate user_refresh_rate; do
   echo "$key=$(settings get system "$key")"
