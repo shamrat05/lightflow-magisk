@@ -7,6 +7,8 @@ DISABLED_PACKAGES="$MODDIR/disabled-background-packages.conf"
 DISABLED_STATE_DIR="$MARKER/disabled-packages"
 MEMORY_STATE_DIR="$MARKER/memory"
 
+sh "$MODDIR/agy-launcher.sh" uninstall
+
 # Restore only the app-ops this module touches. Refresh and animation settings
 # are intentionally left at the user's current values.
 while IFS= read -r pkg; do

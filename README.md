@@ -45,6 +45,14 @@ During the 1.6.1 investigation on RMX3741, 1.6.0 was active with about 2.5 GB av
 
 Version 1.6.1 repairs the missing YouTube optimization target, reduces repeat compilation work, exposes results, and waits for boot readiness. It does not establish a measured FPS or battery-life improvement. Compare the same app interaction at similar temperature and brightness with background terminal work idle before drawing that conclusion.
 
+## Agent scheduling (1.6.2)
+
+On this Termux setup, LightFlow installs a backed-up hook in the known `agy` launcher after root elevation. Each new launch inherits nice level 5 (or keeps an already lower priority) and affinity to the lowest-capacity CPU cluster when the kernel exposes a heterogeneous CPU topology. On RMX3741 this selects CPUs 0–5. New threads and child commands inherit the policy; CPU-heavy agent work may take longer. Unknown topologies keep their original affinity.
+
+There is no polling daemon. The hook runs only when `agy` starts; it does not manage other terminal tools, directly launched binaries, or already running agents. It checks the module's disable/remove markers before applying changes. Uninstall restores the original launcher only if it still matches the module-managed copy, preserving later user edits. Restart the agent after disabling/removing LightFlow to drop inherited scheduling settings.
+
+The installer recognizes the SHA-256 of the tested launcher and skips unknown or updated launchers. Reboot persistence comes from the boot service installing/checking this hook. Lower power consumption is an intention, not a measured battery-life guarantee.
+
 ## LSPosed guidance
 
 LightFlow does not modify LSPosed. Hooks cannot be made free of CPU or battery cost without removing their work. Keep each module scoped only to the apps that need it; avoid hooking SystemUI, the launcher, the camera, or every app globally. For WhatsApp, test `com.wmods.wppenhacer` separately if startup, scrolling, heat, or battery worsens. This preserves normal module behavior while giving a clean A/B test.

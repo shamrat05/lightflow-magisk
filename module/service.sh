@@ -1,6 +1,6 @@
 #!/system/bin/sh
 
-# LightFlow deliberately uses only reversible framework settings and app-ops.
+# LightFlow uses reversible settings and a backed-up agy launch hook.
 # It does not change thermal limits, CPU governors, ZRAM, SELinux, or vendor props.
 
 MODDIR=${0%/*}
@@ -26,6 +26,9 @@ while [ "$(getprop sys.boot_completed)" != 1 ]; do
   fi
   sleep 2
 done
+
+# Install once per boot; subsequent agent launches inherit their own policy.
+sh "$MODDIR/agy-launcher.sh" >> "$LOG" 2>&1
 
 # These are preferences; app requests and vendor policy decide the actual rate.
 settings put system min_refresh_rate 60 >/dev/null 2>&1
