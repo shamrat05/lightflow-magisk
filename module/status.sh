@@ -13,7 +13,9 @@ grep -E 'MemAvailable:|SwapTotal:|SwapFree:' /proc/meminfo
 cat /proc/pressure/memory /proc/pressure/cpu
 echo "Battery:"
 dumpsys battery | grep -E 'powered:|level:|temperature:'
+echo "Thermal status and live sensor readings (not cached temperatures):"
+dumpsys thermalservice | sed -n '/^Thermal Status:/p; /Current temperatures from HAL:/,/Current cooling devices from HAL:/p'
 echo "Target app compilation (verify is not compiled speed-profile code):"
-for pkg in com.google.android.youtube com.facebook.katana com.reddit.frontpage; do
+for pkg in com.instagram.android com.linkedin.android com.google.android.youtube com.facebook.katana com.reddit.frontpage; do
   dumpsys package "$pkg" | sed -n '/Dexopt state:/,/Compiler stats:/p'
 done

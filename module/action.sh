@@ -12,6 +12,7 @@ case "$compile_help" in
 esac
 
 for pkg in \
+  com.instagram.android \
   com.google.android.youtube \
   com.facebook.katana \
   com.whatsapp \
@@ -19,6 +20,15 @@ for pkg in \
   com.linkedin.android \
   com.reddit.frontpage; do
   pm path "$pkg" >/dev/null 2>&1 || continue
+  thermal_status=$(dumpsys thermalservice | awk '/^Thermal Status:/ {print $3; exit}')
+  case "$thermal_status" in
+    0|1) ;;
+    2|3|4|5|6)
+      echo "Android reports thermal throttling; retry when the phone is cool and idle."
+      exit 1
+      ;;
+    *) echo "Cannot read Android thermal status; retry later."; exit 1 ;;
+  esac
   temperature=$(dumpsys battery | awk '/^[[:space:]]*temperature:/ {print $2; exit}')
   case "$temperature" in
     ''|*[!0-9]*) echo "Cannot read battery temperature; retry later."; exit 1 ;;

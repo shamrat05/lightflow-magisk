@@ -1,6 +1,6 @@
 id=lightflow
 name=LightFlow Conservative Performance
-version=1.6.2
-versionCode=10
+version=1.6.3
+versionCode=11
 author=Codex
 description=Low-overhead multitasking, adaptive refresh, and notification-safe delivery; no storage swap, RAM cleaner, thermal spoofing, or blanket app killing.

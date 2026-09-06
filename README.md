@@ -12,7 +12,7 @@ LightFlow is a conservative Android performance profile for rooted devices. It k
 - Disables only optional Meta updater, installer, analytics, and Ads Manager companion packages; Facebook, Messenger, and Facebook Lite remain untouched.
 - On 6–12 GB devices, keeps MGLRU reclaim and zero ZRAM read-ahead enabled for efficient multitasking.
 - Leaves Doze, thermal limits, CPU governors, SELinux, ZRAM, and vendor performance properties alone.
-- Provides an optional Magisk action for YouTube, Facebook, WhatsApp, LinkedIn, and Reddit using their existing speed profiles.
+- Provides an optional Magisk action for Instagram, YouTube, Facebook, WhatsApp, LinkedIn, and Reddit using their existing speed profiles.
 
 The notification policy is intentionally a compromise: normal background delivery is allowed, but notification apps are not placed on the permanent Doze whitelist. This protects battery better than keeping every app awake. Wi-Fi-off scanning is also disabled because it does not help an active connection or FCM delivery, but can wake the radio for network discovery and location. Android, the network, and the app’s own servers can still delay notifications, so no module can guarantee delivery under every condition.
 
@@ -38,6 +38,10 @@ After installation, use the module’s Magisk action button once while the devic
 An accepted command does not prove that compiled code was generated: without a usable profile, ART can fall back to `verify`. Use the apps normally to collect profiles, then let Android optimize during idle charging. See [ART Service configuration](https://source.android.com/docs/core/runtime/configure/art-service).
 
 ## Check responsiveness
+
+Version 1.6.3 adds Instagram to the optimization action and checks Android's thermal status before each app. It defers work at moderate throttling or above, or when status is unavailable, even if battery temperature looks normal. This supplements the 40 °C battery check. It does not interrupt a compilation already underway or automatically retry; run the action when the phone is cool and idle. The status report now separates live thermal readings from cached events.
+
+On-device investigation found Instagram UI-thread stalls despite mostly short GPU timings; Instagram remained at `verify`, while LinkedIn and Reddit already had `speed-profile` artifacts. The thermal service reported moderate throttling. These observations do not establish a single cause or a measured scrolling improvement. No global app CPU restrictions, fixed high-refresh mode, cache clearing, or thermal overrides were added.
 
 Run `su -c 'sh /data/adb/modules/lightflow/status.sh'` for a read-only report of actual display policy, memory pressure, battery temperature, and target app compilation state. The script runs only when requested.
 
