@@ -4,15 +4,15 @@ LightFlow is a conservative Android performance profile for rooted devices. It k
 
 ## What it does
 
-- Applies 60–120 Hz adaptive refresh with a 90 Hz preference after boot.
+- Requests a 60–120 Hz range with a 90 Hz preference after boot. Apps and vendor display policy still decide the actual frame rate.
 - Uses 0.5× Android animation scales for a quicker-feeling interface.
 - Allows normal background execution for common notification apps, including WhatsApp and WhatsApp Business.
 - Keeps established Wi-Fi available during sleep, while disabling Wi-Fi scanning when Wi-Fi is off.
-- Applies its late-start profile without a fixed boot-time delay.
+- Waits for boot completion before applying framework settings, with a bounded readiness check.
 - Disables only optional Meta updater, installer, analytics, and Ads Manager companion packages; Facebook, Messenger, and Facebook Lite remain untouched.
 - On 6–12 GB devices, keeps MGLRU reclaim and zero ZRAM read-ahead enabled for efficient multitasking.
 - Leaves Doze, thermal limits, CPU governors, SELinux, ZRAM, and vendor performance properties alone.
-- Provides an optional Magisk action that compiles only Facebook, WhatsApp, LinkedIn, and Reddit with their existing speed profiles.
+- Provides an optional Magisk action for YouTube, Facebook, WhatsApp, LinkedIn, and Reddit using their existing speed profiles.
 
 The notification policy is intentionally a compromise: normal background delivery is allowed, but notification apps are not placed on the permanent Doze whitelist. This protects battery better than keeping every app awake. Wi-Fi-off scanning is also disabled because it does not help an active connection or FCM delivery, but can wake the radio for network discovery and location. Android, the network, and the app’s own servers can still delay notifications, so no module can guarantee delivery under every condition.
 
@@ -33,7 +33,17 @@ The ZIP is a Magisk-module flashable package. It is not intended for flashing fr
 
 ## Optional app optimization
 
-After installation, use the module’s Magisk action button once while the device is cool or charging. It runs targeted `speed-profile` compilation for Facebook, WhatsApp, LinkedIn, and Reddit only. It does not compile all apps and does not run a resident optimizer loop.
+After installation, use the module’s Magisk action button once while the device is cool, preferably charging and idle. It requests targeted `speed-profile` compilation for YouTube, Facebook, WhatsApp, LinkedIn, and Reddit. On ART versions that support it, it uses `PRIORITY_BACKGROUND` and prints detailed results. It does not force recompilation of current artifacts. It checks battery temperature before each app and stops at 40 °C; an already running compilation is not interrupted. It does not compile all apps or run a resident optimizer loop.
+
+An accepted command does not prove that compiled code was generated: without a usable profile, ART can fall back to `verify`. Use the apps normally to collect profiles, then let Android optimize during idle charging. See [ART Service configuration](https://source.android.com/docs/core/runtime/configure/art-service).
+
+## Check responsiveness
+
+Run `su -c 'sh /data/adb/modules/lightflow/status.sh'` for a read-only report of actual display policy, memory pressure, battery temperature, and target app compilation state. The script runs only when requested.
+
+During the 1.6.1 investigation on RMX3741, 1.6.0 was active with about 2.5 GB available RAM. Facebook and Reddit reported `verify`; YouTube reported `run-from-apk`. A separate terminal agent repeatedly consumed about one CPU core. The foreground display policy requested a 60 Hz render ceiling despite the stored refresh preferences; this was not a measurement of those three apps while scrolling. LightFlow cannot fix another process's workload or promise a particular frame rate by writing refresh settings. Android combines app requests with system policy ([display documentation](https://source.android.com/docs/core/graphics/multiple-refresh-rate)).
+
+Version 1.6.1 repairs the missing YouTube optimization target, reduces repeat compilation work, exposes results, and waits for boot readiness. It does not establish a measured FPS or battery-life improvement. Compare the same app interaction at similar temperature and brightness with background terminal work idle before drawing that conclusion.
 
 ## LSPosed guidance
 

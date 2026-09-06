@@ -16,11 +16,18 @@ mkdir -p "$MARKER"
 mkdir -p "$DISABLED_STATE_DIR"
 mkdir -p "$MEMORY_STATE_DIR"
 
-# Magisk runs service.sh at late_start in parallel with Android boot. Do not
-# add a fixed wait here: framework services are already available, and a
-# delay only postpones the profile without improving its reliability.
+# Wait for boot readiness, with a bound so this never becomes a resident loop.
+attempt=0
+while [ "$(getprop sys.boot_completed)" != 1 ]; do
+  attempt=$((attempt + 1))
+  if [ "$attempt" -ge 120 ]; then
+    printf '%s LightFlow skipped: boot did not complete\n' "$(date '+%F %T')" >> "$LOG"
+    exit 1
+  fi
+  sleep 2
+done
 
-# Keep the responsive 90 Hz preference while retaining 60 Hz idle and 120 Hz headroom.
+# These are preferences; app requests and vendor policy decide the actual rate.
 settings put system min_refresh_rate 60 >/dev/null 2>&1
 settings put system peak_refresh_rate 120 >/dev/null 2>&1
 settings put system user_refresh_rate 90 >/dev/null 2>&1
