@@ -11,10 +11,12 @@ DISABLED_PACKAGES="$MODDIR/disabled-background-packages.conf"
 WIFI_SCAN_STATE="$MARKER/wifi_scan_always_enabled"
 DISABLED_STATE_DIR="$MARKER/disabled-packages"
 MEMORY_STATE_DIR="$MARKER/memory"
+POWER_STATE_DIR="$MARKER/power"
 
 mkdir -p "$MARKER"
 mkdir -p "$DISABLED_STATE_DIR"
 mkdir -p "$MEMORY_STATE_DIR"
+mkdir -p "$POWER_STATE_DIR"
 
 # Wait for boot readiness, with a bound so this never becomes a resident loop.
 attempt=0
@@ -92,6 +94,42 @@ if [ "$memory_total_kb" -ge 6000000 ] && [ "$memory_total_kb" -le 12000000 ]; th
   fi
 fi
 
+# Use Android's own cached-process freezer and adaptive power policy. These
+# controls act on every app without a resident monitor. Save each prior value
+# so uninstall returns the device to the user's state.
+save_setting() {
+  namespace="$1"
+  key="$2"
+  file="$POWER_STATE_DIR/$key"
+  [ -f "$file" ] && return
+  value=$(settings get "$namespace" "$key" 2>/dev/null)
+  case "$value" in
+    ''|null) printf '%s\n' null > "$file" ;;
+    *) printf '%s\n' "$value" > "$file" ;;
+  esac
+}
+
+save_setting global cached_apps_freezer
+save_setting global app_standby_enabled
+save_setting global dynamic_power_savings_enabled
+save_setting global automatic_power_save_mode
+if [ ! -f "$POWER_STATE_DIR/adaptive_power_saver" ]; then
+  if dumpsys power 2>/dev/null | grep -q 'adaptive=true'; then
+    printf '%s\n' true > "$POWER_STATE_DIR/adaptive_power_saver"
+  else
+    printf '%s\n' false > "$POWER_STATE_DIR/adaptive_power_saver"
+  fi
+fi
+
+# Only request the freezer when ActivityManager confirms kernel freezer support.
+if dumpsys activity settings 2>/dev/null | grep -q 'use_freezer=true'; then
+  settings put global cached_apps_freezer enabled >/dev/null 2>&1
+fi
+settings put global app_standby_enabled 1 >/dev/null 2>&1
+settings put global dynamic_power_savings_enabled 1 >/dev/null 2>&1
+settings put global automatic_power_save_mode 1 >/dev/null 2>&1
+cmd power set-adaptive-power-saver-enabled true >/dev/null 2>&1
+
 # These apps may use normal background execution so FCM/app notifications are not
 # intentionally blocked. Do not add them to the Doze whitelist: that costs battery.
 while IFS= read -r pkg; do
@@ -124,4 +162,4 @@ while IFS= read -r pkg; do
   am force-stop "$pkg" >/dev/null 2>&1
 done < "$DISABLED_PACKAGES"
 
-printf '%s LightFlow active: adaptive refresh, low-overhead memory reclaim, notification-safe appops, optional Meta companions disabled\n' "$(date '+%F %T')" >> "$LOG"
+printf '%s LightFlow active: adaptive refresh, kernel reclaim, cached-app freezer, adaptive power, notification-safe appops, optional Meta companions disabled\n' "$(date '+%F %T')" >> "$LOG"

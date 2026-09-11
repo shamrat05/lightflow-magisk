@@ -6,12 +6,13 @@ LightFlow is a conservative Android performance profile for rooted devices. It k
 
 - Requests a 60–120 Hz range with a 90 Hz preference after boot. Apps and vendor display policy still decide the actual frame rate.
 - Uses 0.5× Android animation scales for a quicker-feeling interface.
-- Allows normal background execution for common notification apps, including WhatsApp and WhatsApp Business.
+- Allows normal background execution for common notification apps, including WhatsApp, WhatsApp Business, Facebook, Messenger, and Root Call SMS Manager.
 - Keeps established Wi-Fi available during sleep, while disabling Wi-Fi scanning when Wi-Fi is off.
 - Waits for boot completion before applying framework settings, with a bounded readiness check.
 - Disables only optional Meta updater, installer, analytics, and Ads Manager companion packages; Facebook, Messenger, and Facebook Lite remain untouched.
 - On 6–12 GB devices, keeps MGLRU reclaim and zero ZRAM read-ahead enabled for efficient multitasking.
-- Leaves Doze, thermal limits, CPU governors, SELinux, ZRAM, and vendor performance properties alone.
+- Keeps the kernel's vendor CPU governor, thermal limits, core control, SELinux, and ZRAM size intact; it does not fight hardware policy.
+- Explicitly enables Android's cached-app freezer, app standby, and adaptive power-saver policy when the framework reports support. These controls cover every app without a resident process.
 - Provides an optional Magisk action for Instagram, YouTube, Facebook, Messenger, WhatsApp, LinkedIn, and Reddit using their existing speed profiles.
 
 The notification policy is intentionally a compromise: normal background delivery is allowed, but notification apps are not placed on the permanent Doze whitelist. This protects battery better than keeping every app awake. Wi-Fi-off scanning is also disabled because it does not help an active connection or FCM delivery, but can wake the radio for network discovery and location. Android, the network, and the app’s own servers can still delay notifications, so no module can guarantee delivery under every condition.
@@ -21,6 +22,12 @@ The Meta companion policy is likewise narrow. Its list includes only `com.facebo
 ## Memory policy
 
 The RMX3741 has 8 GB RAM, 5.5 GB of LZ4 ZRAM, and MGLRU support. LightFlow preserves the vendor's multitasking-oriented low-memory-killer and swappiness policy, keeps MGLRU fully enabled, and keeps ZRAM read-ahead at zero. It does not enable NAND swap, increase ZRAM, pin processes, raise cached-process limits, clear caches, or run a memory daemon. Those common “RAM booster” changes either consume more CPU/storage power or make Android kill useful apps sooner.
+
+## Root-level policy
+
+LightFlow applies the lowest-level controls this device exposes safely: MGLRU reclaim, zero ZRAM read-ahead, Android's kernel-backed cached-process freezer, and the vendor CPU policy's existing governor and thermal limits. The status report exposes raw CPU governor/frequency, reclaim, pressure, freezer, thermal, and adaptive-power state. It does not force a governor, pin frequencies, change uclamp/core-control values, disable thermal protection, or poll and kill processes. Those writes can trade scrolling responsiveness, modem reliability, or battery life for a benchmark number on this MediaTek/Oplus firmware.
+
+Adaptive power saving is framework-managed: it can reduce background work when Android's battery model calls for it while leaving the current interactive mode unchanged. Cached-app freezing applies only to processes Android already classifies as cached; foreground apps and notification-critical services remain managed by Android.
 
 ## Install
 
@@ -33,7 +40,7 @@ The ZIP is a Magisk-module flashable package. It is not intended for flashing fr
 
 ## Optional app optimization
 
-Routine optimization is automatic through Android's existing ART background job. LightFlow 1.6.5 verifies that job at boot and attempts to enable it if missing on supported ART versions. It leaves an already scheduled job untouched. Android chooses eligible apps and waits for charging, sufficient battery, idle time, and this ROM's temperature constraint. It does not guarantee an immediate run whenever charging starts. The action button is an optional targeted request, not a required maintenance step.
+Routine optimization is automatic through Android's existing ART background job. LightFlow 1.7.0 verifies that job at boot and attempts to enable it if missing on supported ART versions. It leaves an already scheduled job untouched. Android chooses eligible apps and waits for charging, sufficient battery, idle time, and this ROM's temperature constraint. It does not guarantee an immediate run whenever charging starts. The action button is an optional targeted request, not a required maintenance step.
 
 No LightFlow polling service or extra wakeup schedule is installed. The status script shows the native job's satisfied and unsatisfied constraints. Uninstall leaves Android's normal optimizer enabled. On this phone the native job was already scheduled before 1.6.4; the change adds verification/recovery and makes that automatic behavior visible. See [ART Service](https://android.googlesource.com/platform/art/+/android16-qpr2-release/libartservice/service/README.md).
 
@@ -71,7 +78,7 @@ LightFlow keeps Android/Oplus Wi-Fi validation and roaming in control. It does n
 
 ## Uninstall / rollback
 
-Disable or remove the module in Magisk and reboot. Its uninstall script restores the app-ops, optional Meta companion package states, and Wi-Fi-off scan setting it touched. Refresh-rate, animation, and Wi-Fi sleep settings are left at the values currently selected by the user.
+Disable or remove the module in Magisk and reboot. Its uninstall script restores the app-ops, optional Meta companion package states, Wi-Fi-off scan setting, and low-level power-policy values it touched. Refresh-rate, animation, and Wi-Fi sleep settings are left at the values currently selected by the user.
 
 ## Build locally
 
