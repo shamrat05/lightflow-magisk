@@ -15,6 +15,7 @@ for pkg in \
   com.instagram.android \
   com.google.android.youtube \
   com.facebook.katana \
+  com.facebook.orca \
   com.whatsapp \
   com.whatsapp.w4b \
   com.linkedin.android \

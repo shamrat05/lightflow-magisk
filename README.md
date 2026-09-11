@@ -12,7 +12,7 @@ LightFlow is a conservative Android performance profile for rooted devices. It k
 - Disables only optional Meta updater, installer, analytics, and Ads Manager companion packages; Facebook, Messenger, and Facebook Lite remain untouched.
 - On 6–12 GB devices, keeps MGLRU reclaim and zero ZRAM read-ahead enabled for efficient multitasking.
 - Leaves Doze, thermal limits, CPU governors, SELinux, ZRAM, and vendor performance properties alone.
-- Provides an optional Magisk action for Instagram, YouTube, Facebook, WhatsApp, LinkedIn, and Reddit using their existing speed profiles.
+- Provides an optional Magisk action for Instagram, YouTube, Facebook, Messenger, WhatsApp, LinkedIn, and Reddit using their existing speed profiles.
 
 The notification policy is intentionally a compromise: normal background delivery is allowed, but notification apps are not placed on the permanent Doze whitelist. This protects battery better than keeping every app awake. Wi-Fi-off scanning is also disabled because it does not help an active connection or FCM delivery, but can wake the radio for network discovery and location. Android, the network, and the app’s own servers can still delay notifications, so no module can guarantee delivery under every condition.
 
@@ -33,11 +33,11 @@ The ZIP is a Magisk-module flashable package. It is not intended for flashing fr
 
 ## Optional app optimization
 
-Routine optimization is automatic through Android's existing ART background job. LightFlow 1.6.4 verifies that job at boot and attempts to enable it if missing on supported ART versions. It leaves an already scheduled job untouched. Android chooses eligible apps and waits for charging, sufficient battery, idle time, and this ROM's temperature constraint. It does not guarantee an immediate run whenever charging starts. The action button is an optional targeted request, not a required maintenance step.
+Routine optimization is automatic through Android's existing ART background job. LightFlow 1.6.5 verifies that job at boot and attempts to enable it if missing on supported ART versions. It leaves an already scheduled job untouched. Android chooses eligible apps and waits for charging, sufficient battery, idle time, and this ROM's temperature constraint. It does not guarantee an immediate run whenever charging starts. The action button is an optional targeted request, not a required maintenance step.
 
 No LightFlow polling service or extra wakeup schedule is installed. The status script shows the native job's satisfied and unsatisfied constraints. Uninstall leaves Android's normal optimizer enabled. On this phone the native job was already scheduled before 1.6.4; the change adds verification/recovery and makes that automatic behavior visible. See [ART Service](https://android.googlesource.com/platform/art/+/android16-qpr2-release/libartservice/service/README.md).
 
-After installation, use the module’s Magisk action button once while the device is cool, preferably charging and idle. It requests targeted `speed-profile` compilation for YouTube, Facebook, WhatsApp, LinkedIn, and Reddit. On ART versions that support it, it uses `PRIORITY_BACKGROUND` and prints detailed results. It does not force recompilation of current artifacts. It checks battery temperature before each app and stops at 40 °C; an already running compilation is not interrupted. It does not compile all apps or run a resident optimizer loop.
+After installation, use the module’s Magisk action button once while the device is cool, preferably charging and idle. It requests targeted `speed-profile` compilation for YouTube, Facebook, Messenger, WhatsApp, LinkedIn, and Reddit. On ART versions that support it, it uses `PRIORITY_BACKGROUND` and prints detailed results. It does not force recompilation of current artifacts. It checks battery temperature before each app and stops at 40 °C; an already running compilation is not interrupted. It does not compile all apps or run a resident optimizer loop.
 
 An accepted command does not prove that compiled code was generated: without a usable profile, ART can fall back to `verify`. Use the apps normally to collect profiles, then let Android optimize during idle charging. See [ART Service configuration](https://source.android.com/docs/core/runtime/configure/art-service).
 
