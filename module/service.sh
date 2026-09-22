@@ -6,6 +6,7 @@
 MODDIR=${0%/*}
 LOG=/data/adb/lightflow.log
 MARKER=/data/adb/lightflow
+BOOT_ID=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)
 NOTIFICATION_PACKAGES="$MODDIR/notification-packages.conf"
 DISABLED_PACKAGES="$MODDIR/disabled-background-packages.conf"
 WIFI_SCAN_STATE="$MARKER/wifi_scan_always_enabled"
@@ -162,4 +163,7 @@ while IFS= read -r pkg; do
   am force-stop "$pkg" >/dev/null 2>&1
 done < "$DISABLED_PACKAGES"
 
-printf '%s LightFlow active: adaptive refresh, kernel reclaim, cached-app freezer, adaptive power, notification-safe appops, optional Meta companions disabled\n' "$(date '+%F %T')" >> "$LOG"
+if [ -n "$BOOT_ID" ]; then
+  printf '%s\n' "$BOOT_ID" > "$MARKER/last_boot_id"
+fi
+printf '%s LightFlow active (boot %s): adaptive refresh, kernel reclaim, cached-app freezer, adaptive power, notification-safe appops, optional Meta companions disabled\n' "$(date '+%F %T')" "$BOOT_ID" >> "$LOG"

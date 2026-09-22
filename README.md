@@ -2,6 +2,10 @@
 
 LightFlow is a conservative Android performance profile for rooted devices. It keeps the phone responsive without the usual battery and thermal damage caused by permanent turbo modes, fake thermal readings, forced refresh rates, ZRAM loops, or compiling every installed app.
 
+## Latest release: 1.7.1
+
+Adds startup and policy checks to the read-only status report. It now verifies that the Magisk service is executable, the module is enabled, the service recorded the current boot ID, and key power, refresh, and freezer settings match the requested policy. A mismatch is reported directly instead of being mistaken for a successful setup. This improves diagnosis; it does not claim a measured speed or battery-life increase.
+
 ## What it does
 
 - Requests a 60–120 Hz range with a 90 Hz preference after boot. Apps and vendor display policy still decide the actual frame rate.
