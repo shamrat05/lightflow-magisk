@@ -9,6 +9,7 @@ MEMORY_STATE_DIR="$MARKER/memory"
 POWER_STATE_DIR="$MARKER/power"
 
 sh "$MODDIR/agy-launcher.sh" uninstall
+sh "$MODDIR/io-policy.sh" restore
 
 # Restore only the app-ops this module touches. Refresh and animation settings
 # are intentionally left at the user's current values.

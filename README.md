@@ -2,9 +2,11 @@
 
 LightFlow is a conservative Android performance profile for rooted devices. It keeps the phone responsive without the usual battery and thermal damage caused by permanent turbo modes, fake thermal readings, forced refresh rates, ZRAM loops, or compiling every installed app.
 
-## Latest release: 1.7.1
+## Latest release: 1.7.2
 
-Adds startup and policy checks to the read-only status report. It now verifies that the Magisk service is executable, the module is enabled, the service recorded the current boot ID, and key power, refresh, and freezer settings match the requested policy. A mismatch is reported directly instead of being mistaken for a successful setup. This improves diagnosis; it does not claim a measured speed or battery-life increase.
+Adds a reversible userdata read-ahead cap for RMX3741. The boot helper resolves the current `/data` mapping, checks that it is named `userdata`, and lowers values above 128 KiB to 128 KiB. The original setting is saved and writes are checked by reading them back. The status report shows the current value. Uninstall restores the original unless a user or vendor changed the setting after LightFlow applied it.
+
+This limits speculative reads during mixed app workloads. It may reduce unnecessary storage reads and file-cache churn, but lower read-ahead can reduce sequential-read throughput. Smoothness, app retention, and battery improvement have not been established by a controlled workload test. CPU, thermal, ZRAM, and app-retention limits remain governed by the existing policy.
 
 ## What it does
 
