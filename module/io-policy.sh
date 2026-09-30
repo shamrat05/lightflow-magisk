@@ -5,6 +5,31 @@
 STATE=/data/adb/lightflow/io
 TARGET=128
 [ "$(getprop ro.product.model)" = RMX3741 ] || exit 0
+
+# Realme starts this vendor initializer on sys.boot_completed=1 too. It
+# writes 512 KiB after our early application unless we let it finish first.
+# Require ten seconds of stopped state to allow the queued init action to
+# start, and stop waiting after one minute. No resident monitor is created.
+if [ "${1:-apply}" = boot ]; then
+  attempts=0
+  stopped=0
+  while [ "$attempts" -lt 30 ]; do
+    sleep 2
+    attempts=$((attempts + 1))
+    if [ "$(getprop init.svc.readahead_init)" = stopped ]; then
+      stopped=$((stopped + 1))
+    else
+      stopped=0
+    fi
+    [ "$stopped" -ge 5 ] && break
+  done
+  if [ "$stopped" -lt 5 ]; then
+    echo 'Userdata read-ahead skipped: vendor initializer did not settle.'
+    exit 1
+  fi
+  set -- apply
+fi
+
 device=$(awk '$2 == "/data" {print $1; exit}' /proc/mounts)
 block=${device##*/}
 case "$block" in dm-[0-9]*) ;; *) exit 0 ;; esac

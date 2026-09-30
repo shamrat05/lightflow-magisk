@@ -2,7 +2,14 @@
 
 LightFlow is a conservative Android performance profile for rooted devices. It keeps the phone responsive without the usual battery and thermal damage caused by permanent turbo modes, fake thermal readings, forced refresh rates, ZRAM loops, or compiling every installed app.
 
-## Latest release: 1.7.2
+## Latest release: 1.7.3
+
+Fixes a boot-order race on RMX3741. The vendor starts `readahead_init` on
+boot completion and applies 512 KiB to userdata after LightFlow's early
+write. LightFlow now waits for ten seconds of stopped initializer state,
+with a one-minute bound, before applying its 128 KiB cap. It does not keep
+polling after startup. This addresses persistence, not a new measured
+performance gain. End-to-end reboot verification remains pending.
 
 Adds a reversible userdata read-ahead cap for RMX3741. The boot helper resolves the current `/data` mapping, checks that it is named `userdata`, and lowers values above 128 KiB to 128 KiB. The original setting is saved and writes are checked by reading them back. The status report shows the current value. Uninstall restores the original unless a user or vendor changed the setting after LightFlow applied it.
 
