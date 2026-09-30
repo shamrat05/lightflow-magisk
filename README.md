@@ -2,7 +2,18 @@
 
 LightFlow is a conservative Android performance profile for rooted devices. It keeps the phone responsive without the usual battery and thermal damage caused by permanent turbo modes, fake thermal readings, forced refresh rates, ZRAM loops, or compiling every installed app.
 
-## Latest release: 1.7.3
+## Latest release: 1.7.4
+
+Adds the user-selected RMX3741 Weather background-location restriction.
+Fine and coarse location app-ops are set to `foreground` at UID level;
+package-level modes were overridden on this device. The helper verifies the
+UID belongs only to Weather, saves its prior modes, preserves stricter user
+restrictions, and restores its changes on uninstall. Automatic local-weather
+updates and location-based widgets may stop updating while Weather is in the
+background. Android foreground-service rules may still permit requests when
+its UID is considered foreground. No measured battery-life saving is claimed.
+
+## Read-ahead boot ordering (1.7.3)
 
 Fixes a boot-order race on RMX3741. The vendor starts `readahead_init` on
 boot completion and applies 512 KiB to userdata after LightFlow's early

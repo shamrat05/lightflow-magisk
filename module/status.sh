@@ -60,6 +60,7 @@ done
 dumpsys display | grep -E 'mDesiredDisplayModeSpecs=|PRIORITY_APP_REQUEST_RENDER_FRAME_RATE_RANGE'
 echo "Memory availability and pressure:"
 sh "$MODDIR/io-policy.sh" status
+sh "$MODDIR/weather-policy.sh" status
 grep -E 'MemAvailable:|SwapTotal:|SwapFree:' /proc/meminfo
 cat /proc/pressure/memory /proc/pressure/cpu
 echo "Global app/power policy:"
