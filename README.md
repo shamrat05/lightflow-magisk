@@ -2,7 +2,19 @@
 
 LightFlow is a conservative Android performance profile for rooted devices. It keeps the phone responsive without the usual battery and thermal damage caused by permanent turbo modes, fake thermal readings, forced refresh rates, ZRAM loops, or compiling every installed app.
 
-## Latest release: 1.7.4
+## Latest release: 1.7.5
+
+Disables verbose per-device kernel suspend/resume timing messages on RMX3741.
+This firmware boots with `initcall_debug=1`, which enables those messages;
+LightFlow sets `/sys/power/pm_print_times` to `0` after boot. The helper checks
+support, saves the previous value before changing it, verifies writes, and
+restores its change on uninstall while preserving a later decision to enable
+logging. The status report shows the live value. This removes diagnostic
+printing work; battery-life improvement remains unmeasured. No resident
+tracing process is installed. Full reboot persistence remains unverified.
+See the [kernel printing toggle](https://android.googlesource.com/kernel/common/+/c36f0371ff3d30f28368bbbc75092859714b17ab/kernel/power/main.c).
+
+## Weather location policy (1.7.4)
 
 Adds the user-selected RMX3741 Weather background-location restriction.
 Fine and coarse location app-ops are set to `foreground` at UID level;
@@ -33,6 +45,7 @@ This limits speculative reads during mixed app workloads. It may reduce unnecess
 - Allows normal background execution for common notification apps, including WhatsApp, WhatsApp Business, Facebook, Messenger, and Root Call SMS Manager.
 - Keeps established Wi-Fi available during sleep, while disabling Wi-Fi scanning when Wi-Fi is off.
 - Waits for boot completion before applying framework settings, with a bounded readiness check.
+- Disables verbose kernel sleep-timing logs on RMX3741, with saved-state restoration on uninstall.
 - Disables only optional Meta updater, installer, analytics, and Ads Manager companion packages; Facebook, Messenger, and Facebook Lite remain untouched.
 - On 6–12 GB devices, keeps MGLRU reclaim and zero ZRAM read-ahead enabled for efficient multitasking.
 - Keeps the kernel's vendor CPU governor, thermal limits, core control, SELinux, and ZRAM size intact; it does not fight hardware policy.

@@ -58,9 +58,11 @@ for key in min_refresh_rate peak_refresh_rate user_refresh_rate; do
   echo "$key=$(settings get system "$key")"
 done
 dumpsys display | grep -E 'mDesiredDisplayModeSpecs=|PRIORITY_APP_REQUEST_RENDER_FRAME_RATE_RANGE'
-echo "Memory availability and pressure:"
+echo "Device policies:"
 sh "$MODDIR/io-policy.sh" status
 sh "$MODDIR/weather-policy.sh" status
+sh "$MODDIR/sleep-log-policy.sh" status
+echo "Memory availability and pressure:"
 grep -E 'MemAvailable:|SwapTotal:|SwapFree:' /proc/meminfo
 cat /proc/pressure/memory /proc/pressure/cpu
 echo "Global app/power policy:"

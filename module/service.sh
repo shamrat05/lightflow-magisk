@@ -35,6 +35,7 @@ sh "$MODDIR/agy-launcher.sh" >> "$LOG" 2>&1
 sh "$MODDIR/auto-optimize.sh" >> "$LOG" 2>&1
 sh "$MODDIR/io-policy.sh" boot >> "$LOG" 2>&1
 sh "$MODDIR/weather-policy.sh" apply >> "$LOG" 2>&1
+sh "$MODDIR/sleep-log-policy.sh" apply >> "$LOG" 2>&1
 
 # These are preferences; app requests and vendor policy decide the actual rate.
 settings put system min_refresh_rate 60 >/dev/null 2>&1
