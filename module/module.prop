@@ -1,6 +1,6 @@
 id=lightflow
 name=LightFlow Conservative Performance
-version=1.7.5
-versionCode=19
+version=1.7.6
+versionCode=20
 author=Codex
 description=Root low-level reclaim, cached-app freezing, adaptive power, refresh, and notification-safe delivery; no storage swap, RAM cleaner, thermal spoofing, or blanket app killing.

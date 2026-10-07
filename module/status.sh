@@ -30,7 +30,6 @@ for pair in \
   'global cached_apps_freezer enabled' \
   'global app_standby_enabled 1' \
   'global dynamic_power_savings_enabled 1' \
-  'global automatic_power_save_mode 1' \
   'global wifi_scan_always_enabled 0' \
   'system min_refresh_rate 60' \
   'system peak_refresh_rate 120.0' \
@@ -46,6 +45,21 @@ for pair in \
     printf 'MISMATCH %s/%s expected=%s actual=%s\n' "$namespace" "$key" "$expected" "$actual"
   fi
 done
+echo "Automatic battery-saver trigger (vendor/user selection): $(settings get global automatic_power_save_mode)"
+echo 'Codex launch integration:'
+codex_target=/data/data/com.termux/files/usr/bin/codex
+codex_state=/data/adb/lightflow
+if [ -f "$codex_state/codex-launcher.managed" ] && cmp -s "$codex_target" "$codex_state/codex-launcher.managed"; then
+  echo 'launcher: managed hook installed'
+else
+  echo 'launcher: not verified (unknown or user-edited launcher is preserved)'
+fi
+codex_marker=/data/data/com.termux/files/home/.lightflow/codex-boot-id
+if [ -r "$codex_marker" ] && [ "$(cat "$codex_marker")" = "$current_boot_id" ]; then
+  echo 'launch policy: eligible for this boot'
+else
+  echo 'launch policy: no current-boot marker'
+fi
 if dumpsys power 2>/dev/null | grep -q 'adaptive=true'; then
   echo "OK adaptive power saver enabled"
 else

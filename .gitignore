@@ -1,2 +1,8 @@
 dist/
 *.zip
+artifacts/
+tests/__pycache__/
+factory/runs/
+factory/logs/
+factory/prompts/
+factory/reviews/

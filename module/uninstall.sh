@@ -9,6 +9,7 @@ MEMORY_STATE_DIR="$MARKER/memory"
 POWER_STATE_DIR="$MARKER/power"
 
 sh "$MODDIR/agy-launcher.sh" uninstall
+sh "$MODDIR/codex-launcher.sh" uninstall
 sh "$MODDIR/io-policy.sh" restore
 sh "$MODDIR/weather-policy.sh" restore
 sh "$MODDIR/sleep-log-policy.sh" restore
@@ -45,29 +46,8 @@ fi
 rm -f "$MEMORY_STATE_DIR/mglru_enabled" "$MEMORY_STATE_DIR/page_cluster"
 rmdir "$MEMORY_STATE_DIR" >/dev/null 2>&1
 
-restore_setting() {
-  key="$1"
-  file="$POWER_STATE_DIR/$key"
-  [ -f "$file" ] || return
-  value=$(head -n 1 "$file")
-  case "$value" in
-    null|'') settings delete global "$key" >/dev/null 2>&1 ;;
-    *) settings put global "$key" "$value" >/dev/null 2>&1 ;;
-  esac
-  rm -f "$file"
-}
-
-restore_setting cached_apps_freezer
-restore_setting app_standby_enabled
-restore_setting dynamic_power_savings_enabled
-restore_setting automatic_power_save_mode
-if [ -f "$POWER_STATE_DIR/adaptive_power_saver" ]; then
-  adaptive_state=$(head -n 1 "$POWER_STATE_DIR/adaptive_power_saver")
-  case "$adaptive_state" in
-    true|false) cmd power set-adaptive-power-saver-enabled "$adaptive_state" >/dev/null 2>&1 ;;
-  esac
-  rm -f "$POWER_STATE_DIR/adaptive_power_saver"
-fi
+sh "$MODDIR/power-policy.sh" restore
+sh "$MODDIR/power-policy.sh" restore-legacy-trigger
 rmdir "$POWER_STATE_DIR" >/dev/null 2>&1
 
 if [ -f "$WIFI_SCAN_STATE" ]; then

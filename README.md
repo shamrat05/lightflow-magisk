@@ -2,7 +2,35 @@
 
 LightFlow is a conservative Android performance profile for rooted devices. It keeps the phone responsive without the usual battery and thermal damage caused by permanent turbo modes, fake thermal readings, forced refresh rates, ZRAM loops, or compiling every installed app.
 
-## Latest release: 1.7.5
+## Latest release: 1.7.6
+
+Extends launch-time scheduling to the inspected Termux Codex launcher. On
+RMX3741, Codex previously inherited nice -10 and all eight CPUs. New launches
+request nice 5 and CPUs 0–5, the lower-capacity cluster. Existing lower priority
+is preserved. Child processes and new threads inherit the policy. This reduces
+competition with foreground apps; agent CPU work can take longer. Termux's UI
+and Android apps are not restricted by this hook.
+
+The helper runs once, as the Termux user. It adds no root call at launch, polling
+service, Zygisk hook, forced boost or additional wakeup schedule. A boot marker
+limits it to boots where the enabled module installs/checks the integration.
+Unknown or updated launchers are skipped. The original launcher is backed up;
+installation and restoration use staged, atomic replacement with the original
+permissions, owner and Android SELinux label. Later launcher/helper edits are
+preserved. Directly launched native binaries bypass the hook.
+
+Power-policy backups now require successfully read, recognized values.
+Uninstall keeps invalid backups and failed restoration attempts for recovery.
+The automatic battery-saver trigger mode is left to the user and firmware;
+adaptive saving remains enabled independently. Legacy trigger restoration
+preserves a newer user/vendor choice.
+
+Shell syntax and policy tests cover installation, restoration, edits, failed
+writes, unknown reads, boot-marker gating and real child scheduling. Full reboot
+persistence and controlled FPS/battery measurements remain pending. See
+[1.7.6 release notes](RELEASE-v1.7.6.md).
+
+## Kernel sleep logging (1.7.5)
 
 Disables verbose per-device kernel suspend/resume timing messages on RMX3741.
 This firmware boots with `initcall_debug=1`, which enables those messages;

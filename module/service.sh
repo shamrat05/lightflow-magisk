@@ -32,6 +32,7 @@ done
 
 # Install once per boot; subsequent agent launches inherit their own policy.
 sh "$MODDIR/agy-launcher.sh" >> "$LOG" 2>&1
+sh "$MODDIR/codex-launcher.sh" >> "$LOG" 2>&1
 sh "$MODDIR/auto-optimize.sh" >> "$LOG" 2>&1
 sh "$MODDIR/io-policy.sh" boot >> "$LOG" 2>&1
 sh "$MODDIR/weather-policy.sh" apply >> "$LOG" 2>&1
@@ -101,38 +102,7 @@ fi
 # Use Android's own cached-process freezer and adaptive power policy. These
 # controls act on every app without a resident monitor. Save each prior value
 # so uninstall returns the device to the user's state.
-save_setting() {
-  namespace="$1"
-  key="$2"
-  file="$POWER_STATE_DIR/$key"
-  [ -f "$file" ] && return
-  value=$(settings get "$namespace" "$key" 2>/dev/null)
-  case "$value" in
-    ''|null) printf '%s\n' null > "$file" ;;
-    *) printf '%s\n' "$value" > "$file" ;;
-  esac
-}
-
-save_setting global cached_apps_freezer
-save_setting global app_standby_enabled
-save_setting global dynamic_power_savings_enabled
-save_setting global automatic_power_save_mode
-if [ ! -f "$POWER_STATE_DIR/adaptive_power_saver" ]; then
-  if dumpsys power 2>/dev/null | grep -q 'adaptive=true'; then
-    printf '%s\n' true > "$POWER_STATE_DIR/adaptive_power_saver"
-  else
-    printf '%s\n' false > "$POWER_STATE_DIR/adaptive_power_saver"
-  fi
-fi
-
-# Only request the freezer when ActivityManager confirms kernel freezer support.
-if dumpsys activity settings 2>/dev/null | grep -q 'use_freezer=true'; then
-  settings put global cached_apps_freezer enabled >/dev/null 2>&1
-fi
-settings put global app_standby_enabled 1 >/dev/null 2>&1
-settings put global dynamic_power_savings_enabled 1 >/dev/null 2>&1
-settings put global automatic_power_save_mode 1 >/dev/null 2>&1
-cmd power set-adaptive-power-saver-enabled true >/dev/null 2>&1
+sh "$MODDIR/power-policy.sh" >> "$LOG" 2>&1
 
 # These apps may use normal background execution so FCM/app notifications are not
 # intentionally blocked. Do not add them to the Doze whitelist: that costs battery.
