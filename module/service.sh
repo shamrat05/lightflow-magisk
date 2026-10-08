@@ -49,10 +49,14 @@ settings put global window_animation_scale 0.5 >/dev/null 2>&1
 settings put global transition_animation_scale 0.5 >/dev/null 2>&1
 settings put global animator_duration_scale 0.5 >/dev/null 2>&1
 
-# Keep an established Wi-Fi link available during doze so push delivery and
-# Wi-Fi-to-cellular recovery are not delayed. Android/Oplus still controls
-# roaming and validation. No MTU, DNS, congestion-control, or iptables hacks.
-settings put global wifi_sleep_policy 2 >/dev/null 2>&1
+# Wi-Fi sleep policy is unused by the platform from Android 11/API 30.
+# Keep legacy behavior only on older firmware; modern Android controls radio
+# power saving, roaming and validation without an obsolete settings write.
+sdk=$(getprop ro.build.version.sdk)
+case "$sdk" in
+  ''|*[!0-9]*) ;;
+  *) [ "$sdk" -ge 30 ] || settings put global wifi_sleep_policy 2 >/dev/null 2>&1 ;;
+esac
 
 # Wi-Fi scanning while Wi-Fi is off is separate from keeping an established
 # connection alive. It repeatedly wakes the radio for location and network

@@ -2,7 +2,41 @@
 
 LightFlow is a conservative Android performance profile for rooted devices. It keeps the phone responsive without the usual battery and thermal damage caused by permanent turbo modes, fake thermal readings, forced refresh rates, ZRAM loops, or compiling every installed app.
 
-## Latest release: 1.7.6
+## Latest release: 1.7.7
+
+Adds the installed official bKash package (`com.bKash.customerapp`) to the
+existing optional ART optimization action and compilation-state report. Native
+Android background optimization already covers eligible apps; this does not add
+a bKash timer or change its security, permissions or background execution.
+On the tested phone it already has `speed-profile` artifacts, so there is no
+reason to force a repeat compilation.
+
+Adds a manual Wi-Fi diagnostic using trusted Android utilities. Status sends no
+probe traffic. Probe mode sends at most twelve ICMP requests each to the current
+IPv4 Wi-Fi gateway and Cloudflare, with a fifteen-second bound per destination.
+There is no periodic test, Wi-Fi lock, forced low-latency mode or resident
+monitor. SSID, MAC and private gateway addresses are not printed. Missing or
+IPv6-only routes skip the IPv4 probes. Active VPN/app paths can differ from
+these explicitly Wi-Fi-bound probes.
+
+```sh
+su -c 'sh /data/adb/modules/lightflow/wifi-diagnostics.sh status'
+su -c 'sh /data/adb/modules/lightflow/wifi-diagnostics.sh probe'
+```
+
+The phone's scan throttling and radio power saving were already enabled, with
+verbose logging disabled. Short public probes had no packet loss. One Facebook
+request had a DNS timeout; repeat lookups were normal. These observations do
+not justify disabling power saving or forcing a global DNS/MTU/TCP profile.
+No network-speed or battery improvement is claimed. See the
+[measurement report](WIFI-RESULTS-v1.7.7.md).
+
+The boot service stops writing `wifi_sleep_policy` on Android 11/API 30 and
+newer. Android documents that setting as unused by the platform; this is a
+cleanup, not a latency improvement. Older firmware retains the prior behavior.
+See [Android Settings.Global](https://developer.android.com/reference/android/provider/Settings.Global#WIFI_SLEEP_POLICY).
+
+## Codex scheduling (1.7.6)
 
 Extends launch-time scheduling to the inspected Termux Codex launcher. On
 RMX3741, Codex previously inherited nice -10 and all eight CPUs. New launches
@@ -71,14 +105,14 @@ This limits speculative reads during mixed app workloads. It may reduce unnecess
 - Requests a 60–120 Hz range with a 90 Hz preference after boot. Apps and vendor display policy still decide the actual frame rate.
 - Uses 0.5× Android animation scales for a quicker-feeling interface.
 - Allows normal background execution for common notification apps, including WhatsApp, WhatsApp Business, Facebook, Messenger, and Root Call SMS Manager.
-- Keeps established Wi-Fi available during sleep, while disabling Wi-Fi scanning when Wi-Fi is off.
+- Disables Wi-Fi scanning when Wi-Fi is off; modern Android manages connected-radio power saving.
 - Waits for boot completion before applying framework settings, with a bounded readiness check.
 - Disables verbose kernel sleep-timing logs on RMX3741, with saved-state restoration on uninstall.
 - Disables only optional Meta updater, installer, analytics, and Ads Manager companion packages; Facebook, Messenger, and Facebook Lite remain untouched.
 - On 6–12 GB devices, keeps MGLRU reclaim and zero ZRAM read-ahead enabled for efficient multitasking.
 - Keeps the kernel's vendor CPU governor, thermal limits, core control, SELinux, and ZRAM size intact; it does not fight hardware policy.
 - Explicitly enables Android's cached-app freezer, app standby, and adaptive power-saver policy when the framework reports support. These controls cover every app without a resident process.
-- Provides an optional Magisk action for Instagram, YouTube, Facebook, Messenger, WhatsApp, LinkedIn, and Reddit using their existing speed profiles.
+- Provides an optional Magisk action for Instagram, YouTube, Facebook, Messenger, WhatsApp, LinkedIn, Reddit, and bKash using their existing speed profiles.
 
 The notification policy is intentionally a compromise: normal background delivery is allowed, but notification apps are not placed on the permanent Doze whitelist. This protects battery better than keeping every app awake. Wi-Fi-off scanning is also disabled because it does not help an active connection or FCM delivery, but can wake the radio for network discovery and location. Android, the network, and the app’s own servers can still delay notifications, so no module can guarantee delivery under every condition.
 
@@ -109,7 +143,7 @@ Routine optimization is automatic through Android's existing ART background job.
 
 No LightFlow polling service or extra wakeup schedule is installed. The status script shows the native job's satisfied and unsatisfied constraints. Uninstall leaves Android's normal optimizer enabled. On this phone the native job was already scheduled before 1.6.4; the change adds verification/recovery and makes that automatic behavior visible. See [ART Service](https://android.googlesource.com/platform/art/+/android16-qpr2-release/libartservice/service/README.md).
 
-After installation, use the module’s Magisk action button once while the device is cool, preferably charging and idle. It requests targeted `speed-profile` compilation for YouTube, Facebook, Messenger, WhatsApp, LinkedIn, and Reddit. On ART versions that support it, it uses `PRIORITY_BACKGROUND` and prints detailed results. It does not force recompilation of current artifacts. It checks battery temperature before each app and stops at 40 °C; an already running compilation is not interrupted. It does not compile all apps or run a resident optimizer loop.
+After installation, use the module’s Magisk action button once while the device is cool, preferably charging and idle. It requests targeted `speed-profile` compilation for Instagram, YouTube, Facebook, Messenger, WhatsApp, LinkedIn, Reddit, and bKash. On ART versions that support it, it uses `PRIORITY_BACKGROUND` and prints detailed results. It does not force recompilation of current artifacts. It checks battery temperature before each app and stops at 40 °C; an already running compilation is not interrupted. It does not compile all apps or run a resident optimizer loop.
 
 An accepted command does not prove that compiled code was generated: without a usable profile, ART can fall back to `verify`. Use the apps normally to collect profiles, then let Android optimize during idle charging. See [ART Service configuration](https://source.android.com/docs/core/runtime/configure/art-service).
 

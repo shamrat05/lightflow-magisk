@@ -67,6 +67,8 @@ else
 fi
 echo "Automatic optimization job and constraints:"
 dumpsys jobscheduler | awk '/^  JOB / {show = /android\/com.android.server.(art.BackgroundDexoptJobService|pm.BackgroundDexOptService)/} show {print}'
+echo "Wi-Fi link (no probe traffic):"
+sh "$MODDIR/wifi-diagnostics.sh" status
 echo "Refresh preferences (not measured FPS):"
 for key in min_refresh_rate peak_refresh_rate user_refresh_rate; do
   echo "$key=$(settings get system "$key")"
@@ -100,6 +102,6 @@ dumpsys battery | grep -E 'powered:|level:|temperature:'
 echo "Thermal status and live sensor readings (not cached temperatures):"
 dumpsys thermalservice | sed -n '/^Thermal Status:/p; /Current temperatures from HAL:/,/Current cooling devices from HAL:/p'
 echo "Target app compilation (verify is not compiled speed-profile code):"
-for pkg in com.instagram.android com.linkedin.android com.google.android.youtube com.facebook.katana com.facebook.orca com.reddit.frontpage; do
+for pkg in com.instagram.android com.linkedin.android com.google.android.youtube com.facebook.katana com.facebook.orca com.reddit.frontpage com.bKash.customerapp; do
   dumpsys package "$pkg" | sed -n '/Dexopt state:/,/Compiler stats:/p'
 done

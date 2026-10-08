@@ -19,7 +19,8 @@ for pkg in \
   com.whatsapp \
   com.whatsapp.w4b \
   com.linkedin.android \
-  com.reddit.frontpage; do
+  com.reddit.frontpage \
+  com.bKash.customerapp; do
   pm path "$pkg" >/dev/null 2>&1 || continue
   thermal_status=$(dumpsys thermalservice | awk '/^Thermal Status:/ {print $3; exit}')
   case "$thermal_status" in
