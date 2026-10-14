@@ -13,6 +13,7 @@ WIFI_SCAN_STATE="$MARKER/wifi_scan_always_enabled"
 DISABLED_STATE_DIR="$MARKER/disabled-packages"
 MEMORY_STATE_DIR="$MARKER/memory"
 POWER_STATE_DIR="$MARKER/power"
+FACEBOOK_BACKGROUND_RESET="$MARKER/facebook-background-exemption-reset-v1.9.4"
 
 mkdir -p "$MARKER"
 mkdir -p "$DISABLED_STATE_DIR"
@@ -115,6 +116,16 @@ sh "$MODDIR/power-policy.sh" >> "$LOG" 2>&1
 
 # These apps may use normal background execution so FCM/app notifications are not
 # intentionally blocked. Do not add them to the Doze whitelist: that costs battery.
+# Facebook was exempted by LightFlow 1.9.3. Reset that old exemption once so a
+# cached Facebook process can be frozen; Messenger remains in the notification
+# list above. Do not repeat this write after the migration marker is present.
+if [ ! -f "$FACEBOOK_BACKGROUND_RESET" ] && pm path com.facebook.katana >/dev/null 2>&1; then
+  if cmd appops set com.facebook.katana RUN_ANY_IN_BACKGROUND default >/dev/null 2>&1 && \
+     cmd appops set com.facebook.katana RUN_IN_BACKGROUND default >/dev/null 2>&1; then
+    printf '%s\n' reset > "$FACEBOOK_BACKGROUND_RESET"
+    printf '%s Facebook background exemption reset for v1.9.4\n' "$(date '+%F %T')" >> "$LOG"
+  fi
+fi
 while IFS= read -r pkg; do
   case "$pkg" in
     ''|\#*) continue ;;

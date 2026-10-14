@@ -7,6 +7,7 @@ DISABLED_PACKAGES="$MODDIR/disabled-background-packages.conf"
 DISABLED_STATE_DIR="$MARKER/disabled-packages"
 MEMORY_STATE_DIR="$MARKER/memory"
 POWER_STATE_DIR="$MARKER/power"
+FACEBOOK_BACKGROUND_RESET="$MARKER/facebook-background-exemption-reset-v1.9.4"
 
 sh "$MODDIR/agy-launcher.sh" uninstall
 sh "$MODDIR/codex-launcher.sh" uninstall
@@ -24,6 +25,7 @@ while IFS= read -r pkg; do
   cmd appops set "$pkg" RUN_ANY_IN_BACKGROUND default >/dev/null 2>&1
   cmd appops set "$pkg" RUN_IN_BACKGROUND default >/dev/null 2>&1
 done < "$MODDIR/notification-packages.conf"
+rm -f "$FACEBOOK_BACKGROUND_RESET"
 
 while IFS= read -r pkg; do
   case "$pkg" in

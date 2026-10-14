@@ -2,7 +2,18 @@
 
 LightFlow is a conservative Android performance profile for rooted devices. It keeps the phone responsive without the usual battery and thermal damage caused by permanent turbo modes, fake thermal readings, forced refresh rates, ZRAM loops, or compiling every installed app.
 
-## Latest release: 1.9.0
+## Latest release: 1.9.4
+
+Version 1.9.4 removes Facebook's unrestricted background app-ops. The primary
+Facebook process can now be frozen when cached, while Messenger stays in the
+notification-safe list. On this RMX3741 test, resetting the old exemption freed
+about 500 MB and reduced CPU/SOC temperature by about 14 C after Facebook was
+stopped. Facebook notifications may arrive later when the app is cached.
+
+The module performs that reset once for devices upgraded from 1.9.3, then keeps
+the migration marker so a later boot does not overwrite a user change.
+
+## Core profile
 
 Adds a bounded memory and thermal relief policy for the tested RMX3741. It
 lowers excessive ZRAM reclaim pressure by moving `vm.swappiness` from the
@@ -158,7 +169,7 @@ This limits speculative reads during mixed app workloads. It may reduce unnecess
 
 - Requests a 60–120 Hz range with a 90 Hz preference after boot. Apps and vendor display policy still decide the actual frame rate.
 - Uses 0.5× Android animation scales for a quicker-feeling interface.
-- Allows normal background execution for common notification apps, including WhatsApp, WhatsApp Business, Facebook, Messenger, and Root Call SMS Manager.
+- Allows normal background execution for common notification apps, including WhatsApp, WhatsApp Business, Messenger, and Root Call SMS Manager. Facebook is deliberately left under Android's cached-process policy to avoid its persistent keep-alive service consuming RAM and CPU.
 - Disables Wi-Fi scanning when Wi-Fi is off; modern Android manages connected-radio power saving.
 - Waits for boot completion before applying framework settings, with a bounded readiness check.
 - Disables verbose kernel sleep-timing logs on RMX3741, with saved-state restoration on uninstall.
@@ -169,7 +180,7 @@ This limits speculative reads during mixed app workloads. It may reduce unnecess
 - Explicitly enables Android's cached-app freezer, app standby, and adaptive power-saver policy when the framework reports support. These controls cover every app without a resident process.
 - Provides an optional Magisk action for Instagram, YouTube, Facebook, Messenger, WhatsApp, LinkedIn, Reddit, and bKash using their existing speed profiles.
 
-The notification policy is intentionally a compromise: normal background delivery is allowed, but notification apps are not placed on the permanent Doze whitelist. This protects battery better than keeping every app awake. Wi-Fi-off scanning is also disabled because it does not help an active connection or FCM delivery, but can wake the radio for network discovery and location. Android, the network, and the app’s own servers can still delay notifications, so no module can guarantee delivery under every condition.
+The notification policy is intentionally a compromise: normal background delivery is allowed for messaging apps, but notification apps are not placed on the permanent Doze whitelist. Facebook is excluded from that exemption because its keep-alive service was a measured source of CPU, heat and RAM pressure; its notifications may be delayed until Android or the user resumes it. This protects battery better than keeping every app awake. Wi-Fi-off scanning is also disabled because it does not help an active connection or FCM delivery, but can wake the radio for network discovery and location. Android, the network, and the app's own servers can still delay notifications, so no module can guarantee delivery under every condition.
 
 The Meta companion policy is likewise narrow. Its list includes only `com.facebook.appmanager`, `com.facebook.services`, `com.facebook.system`, `com.facebook.stella`, and `com.facebook.adsmanager`. It does not disable Facebook, Messenger, Facebook Lite, WhatsApp, Google Play services, or any other app that may be needed for notifications or normal use. The original state of each listed package is recorded, so uninstall re-enables only packages that LightFlow disabled itself.
 

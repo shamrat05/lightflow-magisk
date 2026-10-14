@@ -35,6 +35,7 @@ jobs:
           tests.test_thermal_memory_policy
           tests.test_wifi_diagnostics
           tests.test_consumer_package_policy
+          tests.test_notification_package_policy
 
       - name: Build Magisk ZIPs
         run: bash build.sh
