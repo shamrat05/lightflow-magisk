@@ -2,7 +2,16 @@
 
 LightFlow is a conservative Android performance profile for rooted devices. It keeps the phone responsive without the usual battery and thermal damage caused by permanent turbo modes, fake thermal readings, forced refresh rates, ZRAM loops, or compiling every installed app.
 
-## Latest release: 1.9.4
+## Latest release: 1.9.5
+
+Version 1.9.5 disables `com.arena.banglalinkmela.app` by default. The installed
+12.12.0 build was last used about 50 days ago and crashed during locked boot
+because it accessed credential-encrypted preferences too early. Re-enable it
+with `su -c 'pm enable --user 0 com.arena.banglalinkmela.app'` if you use the
+Banglalink Mela/Quran app; LightFlow records and restores its prior state on
+uninstall.
+
+## Version 1.9.4: Facebook background policy
 
 Version 1.9.4 removes Facebook's unrestricted background app-ops. The primary
 Facebook process can now be frozen when cached, while Messenger stays in the
