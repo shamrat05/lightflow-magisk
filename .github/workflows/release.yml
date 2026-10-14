@@ -27,7 +27,14 @@ jobs:
           sudo ln -sfn /bin/sh /system/bin/sh
 
       - name: Run policy tests
-        run: python -m unittest discover -s tests -p 'test*.py'
+        # Codex/power fixtures exercise Termux-only paths and are run on the
+        # device. These portable policy tests cover the packaged module here.
+        run: >-
+          python -m unittest
+          tests.test_memory_pressure_policy
+          tests.test_thermal_memory_policy
+          tests.test_wifi_diagnostics
+          tests.test_consumer_package_policy
 
       - name: Build Magisk ZIPs
         run: bash build.sh
