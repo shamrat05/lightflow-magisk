@@ -52,6 +52,7 @@ settings put global animator_duration_scale 0.5 >/dev/null 2>&1
 # Apply swap and thermal relief after refresh preferences so a hot device keeps
 # the 60 Hz fallback selected by the policy.
 sh "$MODDIR/thermal-memory-policy.sh" apply >> "$LOG" 2>&1
+sh "$MODDIR/memory-pressure-policy.sh" apply >> "$LOG" 2>&1
 
 # Wi-Fi sleep policy is unused by the platform from Android 11/API 30.
 # Keep legacy behavior only on older firmware; modern Android controls radio

@@ -1,5 +1,8 @@
 # LightFlow 1.8.0
 
+This release is superseded by [LightFlow 1.9.0](RELEASE-v1.9.0.md), which
+merges the safe Android 15 memory-pressure behavior into this single module.
+
 Adds a bounded memory and thermal relief policy for the tested RMX3741.
 
 - Lowers excessive `vm.swappiness` from the observed `160` to `60` when the

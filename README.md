@@ -2,7 +2,7 @@
 
 LightFlow is a conservative Android performance profile for rooted devices. It keeps the phone responsive without the usual battery and thermal damage caused by permanent turbo modes, fake thermal readings, forced refresh rates, ZRAM loops, or compiling every installed app.
 
-## Latest release: 1.8.0
+## Latest release: 1.9.0
 
 Adds a bounded memory and thermal relief policy for the tested RMX3741. It
 lowers excessive ZRAM reclaim pressure by moving `vm.swappiness` from the
@@ -19,6 +19,26 @@ successfully and reports `bash 5.3.9`; that report was stale. The live device
 did show high swap use and thermal throttling. After cached-process relief,
 available memory rose above 2 GB, ZRAM use fell from about 4.2 GB to about
 2.6 GB, and the current CPU reading fell from about 77 C to about 55 C.
+
+## Version 1.9.0: Android 15 memory integration
+
+Replaces the separate A1Memory Magisk module with a LightFlow-native,
+RMX3741/Android 15 pressure gate. The upstream `HC_memory` executable was
+stripped, had no source in the fork, and logged `This Android version does not
+support automatic configuration`; it is not packaged or started.
+
+At boot, `memory-pressure-policy.sh` performs one bounded check. It requests
+Android's own `am kill-all` only when available memory is below 1.2 GB, ZRAM is
+at least 75% used, or memory PSI full pressure reaches 1%. Android decides
+which cached processes are safe to remove. Foreground apps, services,
+notifications, LMKD, and thermal policy remain under Android control. Healthy
+conditions produce only a log entry and no process action. The script exits on
+any model other than RMX3741 or SDK other than 35.
+
+This release is one Magisk module. It contains no A1 APK, LSPosed hook, lmkd
+library, system property override, native memory daemon, downloader, or network
+client. The standalone Hc_memory module should be removed before rebooting into
+this release.
 
 ## Version 1.7.7
 
@@ -128,6 +148,7 @@ This limits speculative reads during mixed app workloads. It may reduce unnecess
 - Disables verbose kernel sleep-timing logs on RMX3741, with saved-state restoration on uninstall.
 - Disables only optional Meta updater, installer, analytics, and Ads Manager companion packages; Facebook, Messenger, and Facebook Lite remain untouched.
 - On 6–12 GB devices, keeps MGLRU reclaim and zero ZRAM read-ahead enabled for efficient multitasking.
+- Uses one pressure-gated cached-process action on RMX3741 instead of a separate A1Memory daemon.
 - Keeps the kernel's vendor CPU governor, thermal limits, core control, SELinux, and ZRAM size intact; it does not fight hardware policy.
 - Explicitly enables Android's cached-app freezer, app standby, and adaptive power-saver policy when the framework reports support. These controls cover every app without a resident process.
 - Provides an optional Magisk action for Instagram, YouTube, Facebook, Messenger, WhatsApp, LinkedIn, Reddit, and bKash using their existing speed profiles.
@@ -138,13 +159,13 @@ The Meta companion policy is likewise narrow. Its list includes only `com.facebo
 
 ## Memory policy
 
-The RMX3741 has 8 GB RAM, 5.5 GB of LZ4 ZRAM, and MGLRU support. LightFlow preserves the vendor's multitasking-oriented low-memory-killer and swappiness policy, keeps MGLRU fully enabled, and keeps ZRAM read-ahead at zero. It does not enable NAND swap, increase ZRAM, pin processes, raise cached-process limits, clear caches, or run a memory daemon. Those common “RAM booster” changes either consume more CPU/storage power or make Android kill useful apps sooner.
+The RMX3741 has 8 GB RAM, 5.5 GB of LZ4 ZRAM, and MGLRU support. LightFlow preserves the vendor's multitasking-oriented low-memory-killer and swappiness policy, keeps MGLRU fully enabled, and keeps ZRAM read-ahead at zero. It does not enable NAND swap, increase ZRAM, pin processes, raise cached-process limits, clear caches, or run a resident memory daemon. Its single pressure-gated action asks Android to remove cached processes only under pressure. Those common “RAM booster” changes either consume more CPU/storage power or make Android kill useful apps sooner.
 
 ## Root-level policy
 
-LightFlow applies the lowest-level controls this device exposes safely: MGLRU reclaim, zero ZRAM read-ahead, Android's kernel-backed cached-process freezer, and the vendor CPU policy's existing governor and thermal limits. The status report exposes raw CPU governor/frequency, reclaim, pressure, freezer, thermal, and adaptive-power state. It does not force a governor, pin frequencies, change uclamp/core-control values, disable thermal protection, or poll and kill processes. Those writes can trade scrolling responsiveness, modem reliability, or battery life for a benchmark number on this MediaTek/Oplus firmware.
+LightFlow applies the lowest-level controls this device exposes safely: MGLRU reclaim, zero ZRAM read-ahead, Android's kernel-backed cached-process freezer, and the vendor CPU policy's existing governor and thermal limits. The status report exposes raw CPU governor/frequency, reclaim, pressure, freezer, thermal, and adaptive-power state. It does not force a governor, pin frequencies, change uclamp/core-control values, disable thermal protection, or run a polling daemon. Its single pressure check may request Android's cached-process cleanup under high pressure. Those writes can trade scrolling responsiveness, modem reliability, or battery life for a benchmark number on this MediaTek/Oplus firmware.
 
-Adaptive power saving is framework-managed: it can reduce background work when Android's battery model calls for it while leaving the current interactive mode unchanged. Cached-app freezing applies only to processes Android already classifies as cached; foreground apps and notification-critical services remain managed by Android.
+Adaptive power saving is framework-managed: it can reduce background work when Android's battery model calls for it while leaving the current interactive mode unchanged. Cached-app freezing and pressure relief apply only to processes Android already classifies as cached; foreground apps and notification-critical services remain managed by Android.
 
 ## Install
 
