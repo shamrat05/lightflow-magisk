@@ -20,6 +20,22 @@ did show high swap use and thermal throttling. After cached-process relief,
 available memory rose above 2 GB, ZRAM use fell from about 4.2 GB to about
 2.6 GB, and the current CPU reading fell from about 77 C to about 55 C.
 
+## Version 1.9.1: consumer bloat limits
+
+The single LightFlow module now also disables a reviewed list of optional
+consumer/OEM extras at boot: stores, game center, lock-screen content,
+engineering diagnostics, telemetry, optional Microsoft cross-device helpers and
+unused AOSP utilities. Every package is checked before disabling, its prior
+state is recorded under `/data/adb/lightflow/disabled-packages`, and uninstall
+restores that state. Core telephony, SystemUI, Play services, Athena/battery,
+network-assist, messaging and notification packages are deliberately excluded.
+The disabled features are listed in `module/disabled-background-packages.conf`;
+remove any package from that file if you use it.
+
+The installer also restores executable permissions for Magisk boot scripts. On
+this RMX3741 build the extracted files were otherwise shown as `0644`, even
+though the service had run; the status report now reflects the repaired mode.
+
 ## Version 1.9.0: Android 15 memory integration
 
 Replaces the separate A1Memory Magisk module with a LightFlow-native,

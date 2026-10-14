@@ -1,0 +1,50 @@
+name: Test, package and release LightFlow
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Run policy tests
+        run: python -m unittest discover -s tests -p 'test*.py'
+
+      - name: Build Magisk ZIPs
+        run: bash build.sh
+
+      - name: Checksum LightFlow ZIP
+        run: sha256sum dist/LightFlow-v*.zip > dist/LightFlow-${GITHUB_REF_NAME}.sha256
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LightFlow-${{ github.ref_name }}
+          path: |
+            dist/LightFlow-v*.zip
+            dist/LightFlow-${{ github.ref_name }}.sha256
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/LightFlow-v*.zip dist/LightFlow-${GITHUB_REF_NAME}.sha256 \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "LightFlow $GITHUB_REF_NAME" \
+            --generate-notes

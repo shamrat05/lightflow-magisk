@@ -1,6 +1,6 @@
 id=lightflow
 name=LightFlow Conservative Performance
-version=1.9.0
-versionCode=23
+version=1.9.1
+versionCode=24
 author=Codex
-description=RMX3741 Android 15 low-level reclaim, pressure-gated cached-process relief, thermal refresh fallback, adaptive power, and notification-safe delivery; no A1 native daemon, storage swap, thermal spoofing, or blanket app killing.
+description=RMX3741 Android 15 low-level reclaim, pressure-gated cached-process relief, thermal refresh fallback, adaptive power, and optional consumer-bloat limits; no A1 native daemon, storage swap, thermal spoofing, or blanket app killing.
