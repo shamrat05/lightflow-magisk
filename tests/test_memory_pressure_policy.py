@@ -62,6 +62,13 @@ if [ "$1" = ro.build.version.sdk ]; then echo "${MOCK_SDK:-35}"; fi
         self.assertEqual(self.calls.read_text(), 'kill-all\n')
         self.assertIn('cached-process kill requested', self.log.read_text())
 
+    def test_moderate_swap_pressure_requests_relief_before_thrashing(self):
+        self.meminfo.write_text('MemAvailable: 1750000 kB\nSwapTotal: 5767164 kB\nSwapFree: 1900000 kB\n')
+        self.psi.write_text('some avg10=0.00 avg60=0.00 avg300=0.00 total=0\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n')
+        result = self.run_policy()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.calls.read_text(), 'kill-all\n')
+
     def test_wrong_device_is_noop(self):
         self.meminfo.write_text('MemAvailable: 1 kB\nSwapTotal: 100 kB\nSwapFree: 0 kB\n')
         self.psi.write_text('full avg10=99.00 avg60=99.00 avg300=99.00 total=0\n')

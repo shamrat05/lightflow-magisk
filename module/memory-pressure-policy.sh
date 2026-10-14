@@ -9,8 +9,8 @@
 MODEL=$(getprop ro.product.model 2>/dev/null)
 SDK=$(getprop ro.build.version.sdk 2>/dev/null)
 LOG=/data/adb/lightflow.log
-MIN_AVAILABLE_KB=1200000
-MAX_SWAP_PERCENT=75
+MIN_AVAILABLE_KB=1800000
+MAX_SWAP_PERCENT=65
 MAX_MEMORY_FULL_AVG10=1
 
 case "$MODEL" in

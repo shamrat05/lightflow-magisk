@@ -2,7 +2,15 @@
 
 LightFlow is a conservative Android performance profile for rooted devices. It keeps the phone responsive without the usual battery and thermal damage caused by permanent turbo modes, fake thermal readings, forced refresh rates, ZRAM loops, or compiling every installed app.
 
-## Latest release: 1.9.5
+## Latest release: 1.9.6
+
+Version 1.9.6 triggers Android's cached-process cleanup earlier, at less than
+1.8 GB available or 65% ZRAM use. A clean-device sample reached 1.74 GB and
+69% ZRAM use; one bounded `am kill-all` then freed about 600 MB and reduced
+CPU/SOC temperature by about 23 C. Android still chooses which cached apps to
+remove; foreground apps and active services are preserved.
+
+## Version 1.9.5: unused crash source
 
 Version 1.9.5 disables `com.arena.banglalinkmela.app` by default. The installed
 12.12.0 build was last used about 50 days ago and crashed during locked boot
