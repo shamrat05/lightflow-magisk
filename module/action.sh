@@ -1,6 +1,7 @@
 #!/system/bin/sh
 
 LOG=/data/adb/lightflow.log
+sh "${0%/*}/thermal-memory-policy.sh" cool
 failed=0
 compile_help=$(cmd package help 2>/dev/null)
 

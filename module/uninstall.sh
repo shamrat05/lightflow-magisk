@@ -43,6 +43,7 @@ fi
 if [ -f "$MEMORY_STATE_DIR/page_cluster" ] && [ -w /proc/sys/vm/page-cluster ]; then
   cat "$MEMORY_STATE_DIR/page_cluster" > /proc/sys/vm/page-cluster
 fi
+sh "$MODDIR/thermal-memory-policy.sh" restore
 rm -f "$MEMORY_STATE_DIR/mglru_enabled" "$MEMORY_STATE_DIR/page_cluster"
 rmdir "$MEMORY_STATE_DIR" >/dev/null 2>&1
 

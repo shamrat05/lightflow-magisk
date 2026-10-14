@@ -2,7 +2,25 @@
 
 LightFlow is a conservative Android performance profile for rooted devices. It keeps the phone responsive without the usual battery and thermal damage caused by permanent turbo modes, fake thermal readings, forced refresh rates, ZRAM loops, or compiling every installed app.
 
-## Latest release: 1.7.7
+## Latest release: 1.8.0
+
+Adds a bounded memory and thermal relief policy for the tested RMX3741. It
+lowers excessive ZRAM reclaim pressure by moving `vm.swappiness` from the
+observed `160` to `60`, saves the prior value, and restores it only when no
+later user or vendor change replaced the setting. The Magisk action button
+also requests Android's cached-process cleanup and selects 60 Hz only when
+current thermal or memory-pressure thresholds are reached. It does not stop
+foreground apps, resize ZRAM, clear caches, change thermal limits, lock CPU
+frequencies, or run a resident monitor. Use the status action to see current
+memory, swap, swappiness, and sensor values.
+
+The device diagnostic's broken-bash finding was rechecked: Termux bash starts
+successfully and reports `bash 5.3.9`; that report was stale. The live device
+did show high swap use and thermal throttling. After cached-process relief,
+available memory rose above 2 GB, ZRAM use fell from about 4.2 GB to about
+2.6 GB, and the current CPU reading fell from about 77 C to about 55 C.
+
+## Version 1.7.7
 
 Adds the installed official bKash package (`com.bKash.customerapp`) to the
 existing optional ART optimization action and compilation-state report. Native

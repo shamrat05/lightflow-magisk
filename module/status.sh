@@ -81,6 +81,7 @@ sh "$MODDIR/sleep-log-policy.sh" status
 echo "Memory availability and pressure:"
 grep -E 'MemAvailable:|SwapTotal:|SwapFree:' /proc/meminfo
 cat /proc/pressure/memory /proc/pressure/cpu
+sh "$MODDIR/thermal-memory-policy.sh" status
 echo "Global app/power policy:"
 for key in cached_apps_freezer app_standby_enabled dynamic_power_savings_enabled automatic_power_save_mode; do
   echo "$key=$(settings get global "$key")"
