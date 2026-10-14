@@ -20,7 +20,7 @@ did show high swap use and thermal throttling. After cached-process relief,
 available memory rose above 2 GB, ZRAM use fell from about 4.2 GB to about
 2.6 GB, and the current CPU reading fell from about 77 C to about 55 C.
 
-## Version 1.9.1: consumer bloat limits
+## Version 1.9.3: consumer bloat limits
 
 The single LightFlow module now also disables a reviewed list of optional
 consumer/OEM extras at boot: stores, game center, lock-screen content,
