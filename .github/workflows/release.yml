@@ -21,6 +21,11 @@ jobs:
         with:
           python-version: "3.x"
 
+      - name: Provide Android shell path for host tests
+        run: |
+          sudo mkdir -p /system/bin
+          sudo ln -sfn /bin/sh /system/bin/sh
+
       - name: Run policy tests
         run: python -m unittest discover -s tests -p 'test*.py'
 
