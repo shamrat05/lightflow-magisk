@@ -2,7 +2,18 @@
 
 LightFlow is a conservative Android performance profile for rooted devices. It keeps the phone responsive without the usual battery and thermal damage caused by permanent turbo modes, fake thermal readings, forced refresh rates, ZRAM loops, or compiling every installed app.
 
-## Latest release: 1.9.6
+## Latest release: 1.9.7
+
+Version 1.9.7 adds a low-frequency memory watchdog for the tested RMX3741. It
+checks every 75 seconds while memory is healthy and every 12 seconds during
+pressure, then returns to the slower rate only after available memory exceeds
+2.2 GB. Cleanup has a five-minute cooldown and delegates to Android's
+`am kill-all`, which selects cached processes; the module does not kill PIDs,
+foreground apps, active services, notification listeners, accessibility, dialer,
+SMS, or active VPN services itself. This reduces swap thrash while limiting
+reload and battery costs.
+
+## Version 1.9.6
 
 Version 1.9.6 triggers Android's cached-process cleanup earlier, at less than
 1.8 GB available or 65% ZRAM use. A clean-device sample reached 1.74 GB and
@@ -39,7 +50,7 @@ later user or vendor change replaced the setting. The Magisk action button
 also requests Android's cached-process cleanup and selects 60 Hz only when
 current thermal or memory-pressure thresholds are reached. It does not stop
 foreground apps, resize ZRAM, clear caches, change thermal limits, lock CPU
-frequencies, or run a resident monitor. Use the status action to see current
+frequencies, or run an unrestricted process killer. Use the status action to see current
 memory, swap, swappiness, and sensor values.
 
 The device diagnostic's broken-bash finding was rechecked: Termux bash starts

@@ -9,6 +9,14 @@ MEMORY_STATE_DIR="$MARKER/memory"
 POWER_STATE_DIR="$MARKER/power"
 FACEBOOK_BACKGROUND_RESET="$MARKER/facebook-background-exemption-reset-v1.9.4"
 
+# Stop the low-frequency watchdog before removing its state directory.
+WATCHDOG_PID=$(head -n 1 "$MEMORY_STATE_DIR/watchdog.pid" 2>/dev/null)
+case "$WATCHDOG_PID" in
+  ''|*[!0-9]*) ;;
+  *) kill "$WATCHDOG_PID" >/dev/null 2>&1 || true ;;
+esac
+rm -f "$MEMORY_STATE_DIR/watchdog.pid" "$MEMORY_STATE_DIR/last_cleanup_epoch"
+
 sh "$MODDIR/agy-launcher.sh" uninstall
 sh "$MODDIR/codex-launcher.sh" uninstall
 sh "$MODDIR/io-policy.sh" restore

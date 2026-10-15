@@ -29,6 +29,7 @@ if [ "$1" = ro.build.version.sdk ]; then echo "${MOCK_SDK:-35}"; fi
         source = source.replace('/proc/meminfo', str(self.meminfo))
         source = source.replace('/proc/pressure/memory', str(self.psi))
         source = source.replace('/data/adb/lightflow.log', str(self.log))
+        source = source.replace('/data/adb/lightflow/memory', str(self.base / 'memory'))
         source = source.replace('/system/bin/am', str(am))
         self.script = self.base / 'memory-pressure-policy.sh'
         self.script.write_text(source)
@@ -68,6 +69,16 @@ if [ "$1" = ro.build.version.sdk ]; then echo "${MOCK_SDK:-35}"; fi
         result = self.run_policy()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.calls.read_text(), 'kill-all\n')
+
+    def test_pressure_cleanup_has_five_minute_cooldown(self):
+        self.meminfo.write_text('MemAvailable: 1400000 kB\nSwapTotal: 5767164 kB\nSwapFree: 1000000 kB\n')
+        self.psi.write_text('full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n')
+        first = self.run_policy()
+        second = self.run_policy()
+        self.assertEqual(first.returncode, 0, first.stderr)
+        self.assertEqual(second.returncode, 0, second.stderr)
+        self.assertEqual(self.calls.read_text(), 'kill-all\n')
+        self.assertIn('cooldown active', self.log.read_text())
 
     def test_wrong_device_is_noop(self):
         self.meminfo.write_text('MemAvailable: 1 kB\nSwapTotal: 100 kB\nSwapFree: 0 kB\n')

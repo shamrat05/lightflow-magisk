@@ -9,9 +9,12 @@
 MODEL=$(getprop ro.product.model 2>/dev/null)
 SDK=$(getprop ro.build.version.sdk 2>/dev/null)
 LOG=/data/adb/lightflow.log
+STATE_DIR=/data/adb/lightflow/memory
+LAST_CLEANUP_FILE="$STATE_DIR/last_cleanup_epoch"
 MIN_AVAILABLE_KB=1800000
 MAX_SWAP_PERCENT=65
 MAX_MEMORY_FULL_AVG10=1
+COOLDOWN_SECONDS=300
 
 case "$MODEL" in
   RMX3741) ;;
@@ -65,7 +68,24 @@ case "${1:-apply}" in
     if [ "$memory_available" -lt "$MIN_AVAILABLE_KB" ] || \
        [ "$swap_percent" -ge "$MAX_SWAP_PERCENT" ] || \
        [ "$memory_full_avg10" -ge "$MAX_MEMORY_FULL_AVG10" ]; then
+      mkdir -p "$STATE_DIR" 2>/dev/null
+      now=$(date +%s 2>/dev/null)
+      last=0
+      if [ -r "$LAST_CLEANUP_FILE" ]; then
+        last=$(head -n 1 "$LAST_CLEANUP_FILE")
+      fi
+      uint "$now" || now=0
+      uint "$last" || last=0
+      if [ "$now" -gt 0 ] && [ "$last" -gt 0 ] && [ "$now" -ge "$last" ] && \
+         [ $((now - last)) -lt "$COOLDOWN_SECONDS" ]; then
+        if [ "${LIGHTFLOW_SILENT:-0}" != 1 ]; then
+          printf '%s LightFlow memory relief: cooldown active (%ss remaining; available=%s kB swap=%s%% full.avg10=%s%%)\n' \
+            "$(date '+%F %T')" "$((COOLDOWN_SECONDS - now + last))" "$memory_available" "$swap_percent" "$psi_value" >> "$LOG"
+        fi
+        exit 0
+      fi
       if /system/bin/am kill-all >/dev/null 2>&1; then
+        [ "$now" -gt 0 ] && printf '%s\n' "$now" > "$LAST_CLEANUP_FILE"
         printf '%s LightFlow memory relief: Android cached-process kill requested (available=%s kB swap=%s%% full.avg10=%s%%)\n' \
           "$(date '+%F %T')" "$memory_available" "$swap_percent" "$psi_value" >> "$LOG"
       else
@@ -73,8 +93,10 @@ case "${1:-apply}" in
           "$(date '+%F %T')" "$memory_available" "$swap_percent" "$psi_value" >> "$LOG"
       fi
     else
-      printf '%s LightFlow memory policy: no cached-process relief needed (available=%s kB swap=%s%% full.avg10=%s%%)\n' \
-        "$(date '+%F %T')" "$memory_available" "$swap_percent" "$psi_value" >> "$LOG"
+      if [ "${LIGHTFLOW_SILENT:-0}" != 1 ]; then
+        printf '%s LightFlow memory policy: no cached-process relief needed (available=%s kB swap=%s%% full.avg10=%s%%)\n' \
+          "$(date '+%F %T')" "$memory_available" "$swap_percent" "$psi_value" >> "$LOG"
+      fi
     fi
     ;;
   *)

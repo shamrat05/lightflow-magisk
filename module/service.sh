@@ -114,6 +114,10 @@ fi
 # so uninstall returns the device to the user's state.
 sh "$MODDIR/power-policy.sh" >> "$LOG" 2>&1
 
+# Keep memory checks low frequency. The watchdog delegates cleanup to Android's
+# cached-process policy and exits immediately when this device is unsupported.
+sh "$MODDIR/memory-watchdog.sh" start >> "$LOG" 2>&1
+
 # These apps may use normal background execution so FCM/app notifications are not
 # intentionally blocked. Do not add them to the Doze whitelist: that costs battery.
 # Facebook was exempted by LightFlow 1.9.3. Reset that old exemption once so a
