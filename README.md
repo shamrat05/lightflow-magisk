@@ -2,7 +2,15 @@
 
 LightFlow is a conservative Android performance profile for rooted devices. It keeps the phone responsive without the usual battery and thermal damage caused by permanent turbo modes, fake thermal readings, forced refresh rates, ZRAM loops, or compiling every installed app.
 
-## Latest release: 1.9.8
+## Latest release: 1.9.9
+
+## Version 1.9.9: protect active camera and QR scans
+
+Version 1.9.9 skips LightFlow's bounded cached-process cleanup while a native
+ColorOS/ML Kit QR scanner or camera client is active. This prevents a concurrent
+`am kill-all` from evicting cached camera support during preview startup or
+stream teardown. The module remains enabled and Android still decides which
+cached processes are safe to remove outside an active camera session.
 
 ## Version 1.9.8: avoid PSI-only cleanup
 

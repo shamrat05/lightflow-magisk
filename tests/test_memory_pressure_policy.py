@@ -25,6 +25,10 @@ if [ "$1" = ro.build.version.sdk ]; then echo "${MOCK_SDK:-35}"; fi
         am = self.bin / 'am'
         am.write_text('#!/system/bin/sh\nprintf "%s\\n" "$*" >> "$MOCK_CALLS"\n')
         am.chmod(0o755)
+        self._write_mock('dumpsys', '''
+if [ "$1" = activity ]; then printf '%s\\n' "${MOCK_ACTIVITY:-}"; fi
+if [ "$1" = media.camera ]; then printf '%s\\n' "${MOCK_CAMERA:-}"; fi
+''')
         source = (ROOT / 'module/memory-pressure-policy.sh').read_text()
         source = source.replace('/proc/meminfo', str(self.meminfo))
         source = source.replace('/proc/pressure/memory', str(self.psi))
@@ -79,6 +83,16 @@ if [ "$1" = ro.build.version.sdk ]; then echo "${MOCK_SDK:-35}"; fi
         self.assertEqual(second.returncode, 0, second.stderr)
         self.assertEqual(self.calls.read_text(), 'kill-all\n')
         self.assertIn('cooldown active', self.log.read_text())
+
+    def test_active_qr_scanner_skips_cached_process_cleanup(self):
+        self.meminfo.write_text('MemAvailable: 1400000 kB\nSwapTotal: 5767164 kB\nSwapFree: 1000000 kB\n')
+        self.psi.write_text('full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n')
+        result = self.run_policy(
+            MOCK_ACTIVITY='topResumedActivity=com.google.android.gms/.mlkit.barcode.v2.ScannerActivity'
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(self.calls.exists())
+        self.assertIn('active camera/QR client', self.log.read_text())
 
     def test_psi_alone_does_not_kill_when_memory_and_swap_are_healthy(self):
         self.meminfo.write_text('MemAvailable: 3090000 kB\nSwapTotal: 5767164 kB\nSwapFree: 5500000 kB\n')

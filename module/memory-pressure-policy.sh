@@ -59,6 +59,17 @@ status() {
     "$memory_available" "$swap_percent" "$psi_value" "$MIN_AVAILABLE_KB" "$MAX_SWAP_PERCENT"
 }
 
+# Do not evict cached processes while the native QR scanner or another camera
+# client is active. ColorOS keeps part of the ML Kit/camera path cached, and a
+# concurrent kill-all can stall the preview or make the HAL tear down streams.
+camera_or_qr_active() {
+  dumpsys activity activities 2>/dev/null | grep -qE \
+    'com\.google\.android\.gms/[^ ]*mlkit\.barcode\.(v2\.)?ScannerActivity|com\.google\.android\.gms/[^ ]*PlatformBarcodeScanningActivityProxy' && return 0
+  dumpsys media.camera 2>/dev/null | grep -qE \
+    'client for package (com\.google\.android\.gms|com\.oplus\.camera|com\.android\.camera|com\.google\.android\.GoogleCamera) \(PID' && return 0
+  return 1
+}
+
 case "${1:-apply}" in
   status)
     status
@@ -84,6 +95,11 @@ case "${1:-apply}" in
           printf '%s LightFlow memory relief: cooldown active (%ss remaining; available=%s kB swap=%s%% full.avg10=%s%%)\n' \
             "$(date '+%F %T')" "$((COOLDOWN_SECONDS - now + last))" "$memory_available" "$swap_percent" "$psi_value" >> "$LOG"
         fi
+        exit 0
+      fi
+      if camera_or_qr_active; then
+        printf '%s LightFlow memory relief skipped: active camera/QR client (available=%s kB swap=%s%% full.avg10=%s%%)\n' \
+          "$(date '+%F %T')" "$memory_available" "$swap_percent" "$psi_value" >> "$LOG"
         exit 0
       fi
       if /system/bin/am kill-all >/dev/null 2>&1; then
