@@ -80,6 +80,14 @@ if [ "$1" = ro.build.version.sdk ]; then echo "${MOCK_SDK:-35}"; fi
         self.assertEqual(self.calls.read_text(), 'kill-all\n')
         self.assertIn('cooldown active', self.log.read_text())
 
+    def test_psi_alone_does_not_kill_when_memory_and_swap_are_healthy(self):
+        self.meminfo.write_text('MemAvailable: 3090000 kB\nSwapTotal: 5767164 kB\nSwapFree: 5500000 kB\n')
+        self.psi.write_text('full avg10=5.00 avg60=5.00 avg300=5.00 total=0\n')
+        result = self.run_policy()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(self.calls.exists())
+        self.assertIn('no cached-process relief needed', self.log.read_text())
+
     def test_wrong_device_is_noop(self):
         self.meminfo.write_text('MemAvailable: 1 kB\nSwapTotal: 100 kB\nSwapFree: 0 kB\n')
         self.psi.write_text('full avg10=99.00 avg60=99.00 avg300=99.00 total=0\n')

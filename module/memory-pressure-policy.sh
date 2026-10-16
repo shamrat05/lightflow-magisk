@@ -13,7 +13,6 @@ STATE_DIR=/data/adb/lightflow/memory
 LAST_CLEANUP_FILE="$STATE_DIR/last_cleanup_epoch"
 MIN_AVAILABLE_KB=1800000
 MAX_SWAP_PERCENT=65
-MAX_MEMORY_FULL_AVG10=1
 COOLDOWN_SECONDS=300
 
 case "$MODEL" in
@@ -56,8 +55,8 @@ case "$psi_value" in
 esac
 
 status() {
-  printf 'Memory pressure: available=%s kB swap=%s%% full.avg10=%s%% (thresholds %s kB/%s%%/%s%%)\n' \
-    "$memory_available" "$swap_percent" "$psi_value" "$MIN_AVAILABLE_KB" "$MAX_SWAP_PERCENT" "$MAX_MEMORY_FULL_AVG10"
+  printf 'Memory pressure: available=%s kB swap=%s%% full.avg10=%s%% (kill limits %s kB/%s%%; PSI diagnostic)\n' \
+    "$memory_available" "$swap_percent" "$psi_value" "$MIN_AVAILABLE_KB" "$MAX_SWAP_PERCENT"
 }
 
 case "${1:-apply}" in
@@ -65,9 +64,12 @@ case "${1:-apply}" in
     status
     ;;
   apply)
+    # PSI is diagnostic only. It can rise during a busy foreground workload
+    # while RAM and ZRAM are still healthy; using it as a kill trigger causes
+    # unnecessary cached-app reloads. Cleanup follows the explicit RAM/ZRAM
+    # bounds requested by the watchdog.
     if [ "$memory_available" -lt "$MIN_AVAILABLE_KB" ] || \
-       [ "$swap_percent" -ge "$MAX_SWAP_PERCENT" ] || \
-       [ "$memory_full_avg10" -ge "$MAX_MEMORY_FULL_AVG10" ]; then
+       [ "$swap_percent" -ge "$MAX_SWAP_PERCENT" ]; then
       mkdir -p "$STATE_DIR" 2>/dev/null
       now=$(date +%s 2>/dev/null)
       last=0

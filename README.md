@@ -2,7 +2,15 @@
 
 LightFlow is a conservative Android performance profile for rooted devices. It keeps the phone responsive without the usual battery and thermal damage caused by permanent turbo modes, fake thermal readings, forced refresh rates, ZRAM loops, or compiling every installed app.
 
-## Latest release: 1.9.7
+## Latest release: 1.9.8
+
+## Version 1.9.8: avoid PSI-only cleanup
+
+Version 1.9.8 keeps PSI in diagnostics but does not kill cached apps from PSI
+alone. Busy foreground work can raise PSI while RAM and ZRAM are healthy, so
+cleanup now follows the explicit RAM/ZRAM limits.
+
+## Version 1.9.7: low-frequency watchdog
 
 Version 1.9.7 adds a low-frequency memory watchdog for the tested RMX3741. It
 checks every 75 seconds while memory is healthy and every 12 seconds during
