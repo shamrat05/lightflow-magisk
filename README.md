@@ -2,7 +2,14 @@
 
 LightFlow is a conservative Android performance profile for rooted devices. It keeps the phone responsive without the usual battery and thermal damage caused by permanent turbo modes, fake thermal readings, forced refresh rates, ZRAM loops, or compiling every installed app.
 
-## Latest release: 1.9.9
+## Latest release: 1.9.10
+
+## Version 1.9.10: protect Bitwarden accessibility/autofill
+
+Adds Bitwarden (`com.x8bit.bitwarden`) to the existing background app-ops
+allowlist. This keeps its enabled AccessibilityService and AutofillService
+eligible while the app is backgrounded on ColorOS, without disabling modules,
+changing vault data, or adding a resident process.
 
 ## Version 1.9.9: protect active camera and QR scans
 

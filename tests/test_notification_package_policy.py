@@ -19,6 +19,10 @@ class NotificationPackagePolicyTests(unittest.TestCase):
         self.assertNotIn('com.facebook.katana', entries)
         self.assertIn('com.facebook.orca', entries)
 
+    def test_bitwarden_accessibility_service_is_background_exempt(self):
+        entries = packages(ROOT / 'module/notification-packages.conf')
+        self.assertIn('com.x8bit.bitwarden', entries)
+
     def test_upgrade_migration_resets_the_old_facebook_exemption_once(self):
         source = (ROOT / 'module/service.sh').read_text()
         self.assertIn('facebook-background-exemption-reset-v1.9.4', source)
