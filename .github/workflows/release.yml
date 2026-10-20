@@ -21,6 +21,18 @@ jobs:
         with:
           python-version: "3.x"
 
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install pinned Android tools
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
       - name: Provide Android shell path for host tests
         run: |
           sudo mkdir -p /system/bin
@@ -36,6 +48,17 @@ jobs:
           tests.test_wifi_diagnostics
           tests.test_consumer_package_policy
           tests.test_notification_package_policy
+          tests.test_system_guard
+
+      - name: Build and verify signed system guard
+        env:
+          LIGHTFLOW_GUARD_KEYSTORE_BASE64: ${{ secrets.LIGHTFLOW_GUARD_KEYSTORE_BASE64 }}
+          LIGHTFLOW_GUARD_STORE_PASSWORD: ${{ secrets.LIGHTFLOW_GUARD_STORE_PASSWORD }}
+        run: |
+          umask 077
+          printf '%s' "$LIGHTFLOW_GUARD_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/lightflow-guard.p12"
+          export LIGHTFLOW_GUARD_KEYSTORE="$RUNNER_TEMP/lightflow-guard.p12"
+          bash guard/build.sh
 
       - name: Build Magisk ZIPs
         run: bash build.sh
@@ -50,14 +73,17 @@ jobs:
           path: |
             dist/LightFlow-v*.zip
             dist/LightFlow-${{ github.ref_name }}.sha256
+            module/guard.apk
 
       - name: Publish GitHub release
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
+          extra=()
+          [[ "$GITHUB_REF_NAME" == *-rc.* ]] && extra+=(--prerelease)
+          gh release create "$GITHUB_REF_NAME" "${extra[@]}" \
             dist/LightFlow-v*.zip dist/LightFlow-${GITHUB_REF_NAME}.sha256 \
             --repo "$GITHUB_REPOSITORY" \
             --title "LightFlow $GITHUB_REF_NAME" \
-            --generate-notes
+            --notes-file "RELEASE-${GITHUB_REF_NAME}.md"

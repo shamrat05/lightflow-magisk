@@ -3,6 +3,11 @@
 # Magisk's generic module extraction can leave files at 0644 on this ROM even
 # when the ZIP contains Unix executable bits. Restore the modes required by
 # the boot scripts during installation; this is reversible with the module.
+for required in service.sh action.sh uninstall.sh guard-policy.sh guard.apk memory-pressure-policy.sh memory-watchdog.sh; do
+  if [ ! -s "$MODPATH/$required" ]; then
+    abort "LightFlow archive incomplete: missing $required"
+  fi
+done
 if command -v set_perm >/dev/null 2>&1; then
   for script in "$MODPATH"/*.sh; do
     [ -f "$script" ] || continue

@@ -4,6 +4,10 @@
 # It does not change thermal limits, CPU governors, ZRAM, SELinux, or vendor props.
 
 MODDIR=${0%/*}
+case "$(getprop ro.product.model):$(getprop ro.build.version.sdk)" in
+  RMX3741:35) ;;
+  *) exit 0 ;;
+esac
 LOG=/data/adb/lightflow.log
 MARKER=/data/adb/lightflow
 BOOT_ID=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)
@@ -50,10 +54,8 @@ settings put global window_animation_scale 0.5 >/dev/null 2>&1
 settings put global transition_animation_scale 0.5 >/dev/null 2>&1
 settings put global animator_duration_scale 0.5 >/dev/null 2>&1
 
-# Apply swap and thermal relief after refresh preferences so a hot device keeps
-# the 60 Hz fallback selected by the policy.
-sh "$MODDIR/thermal-memory-policy.sh" apply >> "$LOG" 2>&1
-sh "$MODDIR/memory-pressure-policy.sh" apply >> "$LOG" 2>&1
+# Restore only the swappiness value managed by older LightFlow releases.
+sh "$MODDIR/thermal-memory-policy.sh" restore >> "$LOG" 2>&1
 
 # Wi-Fi sleep policy is unused by the platform from Android 11/API 30.
 # Keep legacy behavior only on older firmware; modern Android controls radio
@@ -114,9 +116,10 @@ fi
 # so uninstall returns the device to the user's state.
 sh "$MODDIR/power-policy.sh" >> "$LOG" 2>&1
 
-# Keep memory checks low frequency. The watchdog delegates cleanup to Android's
-# cached-process policy and exits immediately when this device is unsupported.
-sh "$MODDIR/memory-watchdog.sh" start >> "$LOG" 2>&1
+# Use the existing Zygisk/Vector runtime; no resident memory polling.
+if ! sh "$MODDIR/guard-policy.sh" start >> "$LOG" 2>&1; then
+  printf '%s LightFlow system guard NOT enabled; stock memory policy retained\n' "$(date '+%F %T')" >> "$LOG"
+fi
 
 # These apps may use normal background execution so FCM/app notifications are not
 # intentionally blocked. Do not add them to the Doze whitelist: that costs battery.

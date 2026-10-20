@@ -56,7 +56,7 @@ if [ "$1" = battery ]; then echo '  temperature: 380'; else echo 'Thermal Status
         self.assertEqual(self.swap.read_text(), '60\n')
         self.assertEqual((self.state / 'memory/swappiness').read_text(), '160\n')
         calls = self.log.read_text()
-        self.assertIn('am kill-all', calls)
+        self.assertNotIn('am kill-all', calls)
         self.assertIn('settings put system user_refresh_rate 60', calls)
 
     def test_restore_preserves_user_change(self):

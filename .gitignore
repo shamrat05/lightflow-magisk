@@ -1,4 +1,7 @@
 dist/
+guard/build/
+module/guard.apk
+.work/
 *.zip
 artifacts/
 tests/__pycache__/

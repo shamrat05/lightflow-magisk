@@ -1,6 +1,6 @@
 id=lightflow
 name=LightFlow Conservative Performance
-version=1.9.10
-versionCode=33
+version=1.10.0-rc.1
+versionCode=34
 author=Codex
-description=RMX3741 Android 15 low-level reclaim, dual-rate pressure watchdog, hysteresis-gated cached-process relief, thermal refresh fallback, adaptive power, and optional consumer-bloat limits; no A1 native daemon, storage swap, thermal spoofing, or blanket app killing.
+description=RMX3741 Android 15 event-driven system_server OEM cleanup guard via existing Zygisk Next/Vector; no cache-killing timer. Preserves stock emergency LMKD, thermal controls and notification delivery paths. Runtime verification required.

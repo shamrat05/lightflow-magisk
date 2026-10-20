@@ -128,10 +128,9 @@ case "${1:-apply}" in
     # Manual Magisk action relief. Android only kills cached processes here;
     # foreground apps and notification services are not force-stopped.
     if [ "$thermal_hot" -eq 1 ] || [ "$memory_available" -lt 1200000 ] || [ "$swap_percent" -ge 75 ]; then
-      am kill-all >/dev/null 2>&1 || true
       set_cool_display || exit 1
-      printf '%s LightFlow relief: cached processes requested, 60 Hz thermal mode applied\n' "$(date '+%F %T')" >> "$LOG"
-      echo 'Cached-process relief requested; 60 Hz thermal mode applied.'
+      printf '%s LightFlow manual display relief: 60 Hz applied; no apps killed\n' "$(date '+%F %T')" >> "$LOG"
+      echo '60 Hz thermal mode applied; no apps killed.'
     else
       set_normal_display || exit 1
       echo 'No heat or memory-pressure threshold reached; no processes stopped.'

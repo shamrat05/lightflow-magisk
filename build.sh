@@ -15,6 +15,10 @@ command -v zip >/dev/null 2>&1 || {
 }
 
 test -f "$module_dir/module.prop"
+test -s "$module_dir/guard.apk" || {
+  echo 'Build the signed guard APK in GitHub Actions before packaging LightFlow.' >&2
+  exit 1
+}
 mkdir -p "$dist_dir"
 rm -f "$output"
 rm -f "$camera_output"

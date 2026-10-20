@@ -1,8 +1,47 @@
 # LightFlow Magisk Module
 
-LightFlow is a conservative Android performance profile for rooted devices. It keeps the phone responsive without the usual battery and thermal damage caused by permanent turbo modes, fake thermal readings, forced refresh rates, ZRAM loops, or compiling every installed app.
+LightFlow is a device-specific Android performance project for rooted RMX3741
+running Android 15. Results must be measured on the device; more free RAM alone
+does not prove better performance or battery life.
 
 ## Latest release: 1.9.10
+
+## In development: 1.10.0-rc.1 system guard
+
+Replaces the cached-app kill timer with two event-driven hooks in system_server,
+using the already installed Zygisk Next + Vector. LightFlow remains one Magisk
+module and bundles its permission-free hook APK. No second native injection
+engine, package keep-alive list, monitor thread or timed `am kill-all` is added.
+
+The tested firmware has two premature cleanup entry paths:
+`OplusAthenaAmManager.releaseMemory(Bundle)` (`type=smart-force`, reason4010)
+and `OplusOsenseKillAction.execute(Bundle)` (`type=cached`). On October20 the
+OEM history showed CachedClean evictions with 2174 MB available. The guard defers
+these routine requests when memory has headroom, independent of app name.
+Old LightFlow's swap65% OR RAM1.8GB gate repeatedly evicted cached apps;
+the RC retires that design and makes its action button diagnostics-only.
+
+The starting pressure policy uses the firmware's observed 880 MiB critical RAM
+threshold. Critical RAM or PSI full.avg10>=10% preserves stock recovery
+immediately. Moderate low RAM (<1320 MiB) combined with stalls (>=2%) or nearly
+exhausted swap (<=10% free) needs three observed samples over 10 seconds;
+sparse pressure observations fail open. Recovery remains latched until RAM is
+at least 1760 MiB and PSI<0.5%. These initial bounds require runtime evaluation.
+Unknown measurements/types, CPU-hog targets, explicit-free requests, BgLimit,
+quick-boot/special mode and verified camera/big-app scenes stay stock.
+
+Native LMKD, thermal controls, app CPU/orphan controls, notification delivery,
+FCM, jobs, alarms and active service roles remain enabled. The guard neither
+changes OOM scores nor pins social apps awake. It cannot promise every app will
+stay resident or every notification will arrive instantly. Keeping more cached
+apps can increase RAM use; battery and smoothness gains are unverified.
+
+Builds and signing run in GitHub Actions. The installer rejects missing core
+files; the boot service installs/enables the bundled APK through Vector's CLI.
+Hook installation and both cleanup decisions still need post-reboot log
+verification, app-switching tests and real social notification tests.
+Set `su -c 'setprop sys.lightflow.guard 0'` for an immediate return to stock
+OEM decisions without rebooting. Removing LightFlow disables the guard APK.
 
 ## Version 1.9.10: protect Bitwarden accessibility/autofill
 
@@ -64,7 +103,7 @@ stopped. Facebook notifications may arrive later when the app is cached.
 The module performs that reset once for devices upgraded from 1.9.3, then keeps
 the migration marker so a later boot does not overwrite a user change.
 
-## Core profile
+## Legacy core profile (before 1.10.0)
 
 Adds a bounded memory and thermal relief policy for the tested RMX3741. It
 lowers excessive ZRAM reclaim pressure by moving `vm.swappiness` from the

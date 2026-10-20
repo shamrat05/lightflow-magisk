@@ -9,12 +9,10 @@ MEMORY_STATE_DIR="$MARKER/memory"
 POWER_STATE_DIR="$MARKER/power"
 FACEBOOK_BACKGROUND_RESET="$MARKER/facebook-background-exemption-reset-v1.9.4"
 
-# Stop the low-frequency watchdog before removing its state directory.
-WATCHDOG_PID=$(head -n 1 "$MEMORY_STATE_DIR/watchdog.pid" 2>/dev/null)
-case "$WATCHDOG_PID" in
-  ''|*[!0-9]*) ;;
-  *) kill "$WATCHDOG_PID" >/dev/null 2>&1 || true ;;
-esac
+sh "$MODDIR/guard-policy.sh" stop
+sh "$MODDIR/memory-watchdog.sh" stop
+[ -x /data/adb/lspd/cli ] && /data/adb/lspd/cli modules disable dev.lightflow.guard >/dev/null 2>&1
+pm uninstall dev.lightflow.guard >/dev/null 2>&1 || true
 rm -f "$MEMORY_STATE_DIR/watchdog.pid" "$MEMORY_STATE_DIR/last_cleanup_epoch"
 
 sh "$MODDIR/agy-launcher.sh" uninstall
