@@ -6,7 +6,7 @@ does not prove better performance or battery life.
 
 ## Latest release: 1.9.10
 
-## Release candidate: 1.10.0-rc.6 system guard
+## Release candidate: 1.10.0-rc.6.1 system guard
 
 RC6 removes the verified boot activation dependency on `pm path`. Interactive
 preparation records a third receipt line containing the actual verified APK
@@ -20,7 +20,7 @@ only when the installed APK is byte-identical and the actual loaded hooks and
 policy diagnostic pass. GitHub Actions reuses the original signed RC5 guard
 APK only for its exact unchanged source tree and pinned APK digest, with
 signature verification. The helper APK remains version38; the module is
-version39. This avoids a needless APK replacement and restart for this script
+version40. This avoids a needless APK replacement and restart for this script
 correction. A changed guard source tree still builds/signs a new APK normally.
 
 
