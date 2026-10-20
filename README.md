@@ -6,7 +6,25 @@ does not prove better performance or battery life.
 
 ## Latest release: 1.9.10
 
-## Release candidate: 1.10.0-rc.6.1 system guard
+## Release candidate: 1.10.0-rc.6.2 optional diagnostics cleanup
+
+RC6.2 uses the audited firmware's own switches to stop the optional native
+`ostatsd`, `ostats_tpd`, and `ostats_pullerd` collectors. It records ownership,
+verifies the stopped state, rolls back a failed stop and restores owned settings
+on uninstall. Application is restricted to the exact audited RMX3741 Android15
+firmware increment. No resident monitor is added. LFEH diagnostic log encryption
+and upload joins the optional package list; already user-disabled OLC and
+OneTrace remain disabled. Package changes target user 0 explicitly.
+
+The collectors recorded no CPU ticks during a 41.3-second sample, and their
+combined current PSS was 179 KiB. This removes optional collection and its future
+jobs; it does not demonstrate a large RAM, battery or scrolling improvement.
+Native thermal control, telephony and notification services remain enabled.
+The existing signed RC5 guard APK is unchanged. See the
+[RC6.2 release notes](RELEASE-v1.10.0-rc.6.2.md) and
+[audit](docs/oem-diagnostics-2026-10-20.md).
+
+## Previous deployment correction
 
 RC6 removes the verified boot activation dependency on `pm path`. Interactive
 preparation records a third receipt line containing the actual verified APK

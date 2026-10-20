@@ -6,7 +6,7 @@
 if [ "${BOOTMODE:-false}" != true ]; then
   abort 'Install LightFlow from Magisk after Android and Vector are running; recovery cannot prepare the injected guard.'
 fi
-for required in service.sh action.sh uninstall.sh guard-policy.sh guard.apk memory-pressure-policy.sh memory-watchdog.sh codex-launcher.sh codex-policy.sh codex-user-install.sh; do
+for required in service.sh action.sh uninstall.sh guard-policy.sh guard.apk memory-pressure-policy.sh memory-watchdog.sh codex-launcher.sh codex-policy.sh codex-user-install.sh oem-diagnostics-policy.sh; do
   if [ ! -s "$MODPATH/$required" ]; then
     abort "LightFlow archive incomplete: missing $required"
   fi

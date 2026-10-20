@@ -1,7 +1,7 @@
 #!/system/bin/sh
 
 # LightFlow uses reversible settings and a backed-up agy launch hook.
-# It does not change thermal limits, CPU governors, ZRAM, SELinux, or vendor props.
+# Thermal limits, CPU governors, ZRAM size and SELinux remain stock.
 
 MODDIR=${0%/*}
 case "$(getprop ro.product.model):$(getprop ro.build.version.sdk)" in
@@ -53,6 +53,7 @@ sh "$MODDIR/auto-optimize.sh" >> "$LOG" 2>&1
 sh "$MODDIR/io-policy.sh" boot >> "$LOG" 2>&1
 sh "$MODDIR/weather-policy.sh" apply >> "$LOG" 2>&1
 sh "$MODDIR/sleep-log-policy.sh" apply >> "$LOG" 2>&1
+sh "$MODDIR/oem-diagnostics-policy.sh" apply >> "$LOG" 2>&1
 
 # These are preferences; app requests and vendor policy decide the actual rate.
 settings put system min_refresh_rate 60 >/dev/null 2>&1
@@ -153,9 +154,7 @@ while IFS= read -r pkg; do
   cmd appops set "$pkg" RUN_IN_BACKGROUND allow >/dev/null 2>&1
 done < "$NOTIFICATION_PACKAGES"
 
-# Disable only optional Meta companion packages. The primary Facebook apps are
-# intentionally excluded: their normal background operation is needed for
-# notifications, media upload, and a responsive next launch. Save the initial
+# Disable only the optional packages in the reviewed list. Save the initial
 # state once so uninstall restores only packages this module disabled itself.
 while IFS= read -r pkg; do
   case "$pkg" in
@@ -164,17 +163,17 @@ while IFS= read -r pkg; do
   pm path "$pkg" >/dev/null 2>&1 || continue
   state_file="$DISABLED_STATE_DIR/$pkg"
   if [ ! -f "$state_file" ]; then
-    if pm list packages -d "$pkg" | grep -qx "package:$pkg"; then
+    if pm list packages --user 0 -d "$pkg" | grep -qx "package:$pkg"; then
       printf '%s\n' disabled > "$state_file"
     else
       printf '%s\n' enabled > "$state_file"
     fi
   fi
   pm disable-user --user 0 "$pkg" >/dev/null 2>&1
-  am force-stop "$pkg" >/dev/null 2>&1
+  am force-stop --user 0 "$pkg" >/dev/null 2>&1
 done < "$DISABLED_PACKAGES"
 
 if [ -n "$BOOT_ID" ]; then
   printf '%s\n' "$BOOT_ID" > "$MARKER/last_boot_id"
 fi
-printf '%s LightFlow active (boot %s): adaptive refresh, kernel reclaim, cached-app freezer, adaptive power, notification-safe appops, optional Meta companions disabled\n' "$(date '+%F %T')" "$BOOT_ID" >> "$LOG"
+printf '%s LightFlow active (boot %s): refresh preferences, kernel reclaim, cached-app freezer, adaptive power, notification-safe appops, optional package/diagnostic policy applied\n' "$(date '+%F %T')" "$BOOT_ID" >> "$LOG"

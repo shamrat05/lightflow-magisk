@@ -24,6 +24,7 @@ sh "$MODDIR/codex-launcher.sh" uninstall
 sh "$MODDIR/io-policy.sh" restore
 sh "$MODDIR/weather-policy.sh" restore
 sh "$MODDIR/sleep-log-policy.sh" restore
+sh "$MODDIR/oem-diagnostics-policy.sh" restore
 
 # Restore only the app-ops this module touches. Refresh and animation settings
 # are intentionally left at the user's current values.
@@ -43,7 +44,7 @@ while IFS= read -r pkg; do
   esac
   state_file="$DISABLED_STATE_DIR/$pkg"
   if [ -f "$state_file" ] && [ "$(head -n 1 "$state_file")" = enabled ]; then
-    pm enable "$pkg" >/dev/null 2>&1
+    pm enable --user 0 "$pkg" >/dev/null 2>&1
   fi
   rm -f "$state_file"
 done < "$DISABLED_PACKAGES"
