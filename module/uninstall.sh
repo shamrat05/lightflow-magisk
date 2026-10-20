@@ -10,6 +10,8 @@ POWER_STATE_DIR="$MARKER/power"
 FACEBOOK_BACKGROUND_RESET="$MARKER/facebook-background-exemption-reset-v1.9.4"
 
 sh "$MODDIR/guard-policy.sh" stop
+rm -f "$MARKER/guard-deployment/prepared"
+rmdir "$MARKER/guard-deployment" >/dev/null 2>&1 || true
 sh "$MODDIR/memory-watchdog.sh" stop
 [ -x /data/adb/lspd/cli ] && /data/adb/lspd/cli modules disable dev.lightflow.guard >/dev/null 2>&1
 pm uninstall dev.lightflow.guard >/dev/null 2>&1 || true

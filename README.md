@@ -6,7 +6,16 @@ does not prove better performance or battery life.
 
 ## Latest release: 1.9.10
 
-## Release candidate: 1.10.0-rc.2 system guard
+## Release candidate: 1.10.0-rc.3 system guard
+
+RC3 fixes the verified guard deployment failure. The Magisk installer prepares
+and verifies the APK and Vector scope before reboot. Boot activation never
+installs an APK: it requires a previous-boot preparation receipt, matching
+installed bytes, owner-user registration, correct scope, both loaded hooks,
+and a passing read-only policy self-check before enabling the guard. PM/Vector
+calls have fixed deadlines. This corrects activation of the existing guard;
+it does not establish a scrolling or battery-life improvement. See the RC3
+release notes for the observed boot failure and deployment limits.
 
 The tested Codex route is `codex-wrapper → codex-core → Node → native Codex`.
 An npm update replaced the separate `codex` entry with a symlink. The old
@@ -61,7 +70,7 @@ stay resident or every notification will arrive instantly. Keeping more cached
 apps can increase RAM use; battery and smoothness gains are unverified.
 
 Builds and signing run in GitHub Actions. The installer rejects missing core
-files; the boot service installs/enables the bundled APK through Vector's CLI.
+files and prepares the bundled APK through Vector's CLI before reboot.
 RC1 boot/scope and live system_server callback activity were observed on the
 device. RC2 reports actual counters so registration can be distinguished from
 execution. Notification delivery and long-term battery gains cannot be proven
@@ -314,8 +323,10 @@ Adaptive power saving is framework-managed: it can reduce background work when A
 
 1. Download the newest `LightFlow-*.zip` from the Releases page.
 2. In Magisk, open **Modules** → **Install from storage**.
-3. Select the ZIP and reboot.
-4. Verify that the module is enabled.
+3. Select the ZIP while Android and Vector are running. The installer verifies
+   the helper APK and scope before reporting preparation complete; then reboot.
+4. Run the module action/status and verify the loaded hook diagnostic, not only
+   the module's enabled switch.
 
 The ZIP is a Magisk-module flashable package. It is not intended for flashing from a custom recovery.
 
