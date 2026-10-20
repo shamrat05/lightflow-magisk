@@ -8,7 +8,7 @@ work="$root/guard/build"
 mkdir -p "$work/classes" "$work/dex" "$work/unsigned/assets"
 api="$work/xposed-api-82.jar"
 curl --fail --location --retry 2 --silent --show-error \
-  https://api.xposed.info/repo/de/robv/android/xposed/api/82/api-82.jar -o "$api"
+  https://api.xposed.info/de/robv/android/xposed/api/82/api-82.jar -o "$api"
 printf '%s  %s\n' f48c635f1c7469fdec0e00ad2ea0b7a6b2f5b55065784a35b7ca3a84615e8e25 "$api" | sha256sum -c -
 # The API is compile-only; it must never be included in the APK.
 javac -source 8 -target 8 -cp "$android:$api" -d "$work/classes" \
