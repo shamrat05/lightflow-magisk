@@ -1,7 +1,7 @@
 #!/system/bin/sh
 # Compatibility stop entry for upgrades. Never start another cleanup timer.
 # Validate exact argv before signalling; a stored PID can be reused after boot.
-ps -A -o PID,ARGS | while read -r pid interpreter path mode rest; do
+/system/bin/ps -A -o PID,ARGS | while read -r pid interpreter path mode rest; do
   case "$pid" in ''|*[!0-9]*) continue ;; esac
   case "$interpreter:$path:$mode:$rest" in
     'sh:/data/adb/modules/lightflow/memory-watchdog.sh:loop:'|\
