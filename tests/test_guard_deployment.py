@@ -131,6 +131,8 @@ elif name == 'cli':
                 {'APP_PACKAGE': target.rsplit('/', 1)[0],
                  'USER_ID': int(target.rsplit('/', 1)[1])}
                 for target in args[3:] if not target.startswith('--')]
+        if state.get('replace_apk_after_scope'):
+            Path(state['installed_apk']).write_bytes(b'APK replaced after initial verification')
         finish('{"success": true}')
     if args[:2] == ['scope', 'ls']:
         finish(json.dumps({'data': state['scope_rows'], 'success': True}, indent=2))
@@ -166,7 +168,7 @@ class GuardDeploymentTests(unittest.TestCase):
         self.apk = self.module / 'guard.apk'
         self.apk.write_bytes(b'LightFlow signed guard fixture version 1\n')
         self.digest = hashlib.sha256(self.apk.read_bytes()).hexdigest()
-        self.installed = self.base / 'installed/base.apk'
+        self.installed = self.base / 'data-app/~~install/dev.lightflow.guard-test/base.apk'
         framework = self.base / 'framework-res.apk'
         framework.write_bytes(b'Android framework fixture')
         self.state_file = self.base / 'mock-state.json'
@@ -205,6 +207,7 @@ class GuardDeploymentTests(unittest.TestCase):
     def fixture_source(self, path):
         source = path.read_text()
         replacements = {
+            '/data/app': str(self.base / 'data-app'),
             '/data/adb/lightflow': str(self.state_dir),
             '/data/adb/lspd/cli': str(self.bin / 'cli'),
             '/data/local/tmp': str(self.staging),
@@ -237,10 +240,10 @@ class GuardDeploymentTests(unittest.TestCase):
                               capture_output=True, text=True, timeout=20)
 
     def ready_for_next_boot(self):
-        self.installed.parent.mkdir(exist_ok=True)
+        self.installed.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(self.apk, self.installed)
         self.receipt.parent.mkdir(parents=True, exist_ok=True)
-        self.receipt.write_text(BOOT_A + '\n' + self.digest + '\n')
+        self.receipt.write_text(BOOT_A + '\n' + self.digest + '\n' + str(self.installed) + '\n')
         self.boot.write_text(BOOT_B + '\n')
 
     def assert_stock(self, result):
@@ -256,7 +259,8 @@ class GuardDeploymentTests(unittest.TestCase):
         result = self.run_policy('prepare')
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(self.installed.read_bytes(), self.apk.read_bytes())
-        self.assertEqual(self.receipt.read_text().splitlines(), [BOOT_A, self.digest])
+        self.assertEqual(self.receipt.read_text().splitlines(),
+                         [BOOT_A, self.digest, str(self.installed)])
         self.assertEqual(self.state()['properties']['sys.lightflow.guard'], '1')
         self.assertFalse(self.calls('setprop'))
         installs = self.calls('pm', ('install',))
@@ -278,11 +282,62 @@ class GuardDeploymentTests(unittest.TestCase):
 
     def test_matching_apk_skips_install_and_records_current_boot(self):
         self.ready_for_next_boot()
+        self.configure(diagnostic_missing=True)
         result = self.run_policy('prepare')
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertFalse(self.calls('pm', ('install',)))
-        self.assertEqual(self.receipt.read_text().splitlines(), [BOOT_B, self.digest])
+        self.assertEqual(self.receipt.read_text().splitlines(),
+                         [BOOT_B, self.digest, str(self.installed)])
         self.assertFalse(self.calls('setprop'))
+
+    def test_prepare_preserves_verified_loaded_boot_for_identical_apk(self):
+        self.ready_for_next_boot()
+        result = self.run_policy('prepare')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.receipt.read_text().splitlines(),
+                         [BOOT_A, self.digest, str(self.installed)])
+        self.assertFalse(self.calls('pm', ('install',)))
+        self.assertTrue(self.calls('dumpsys'))
+        self.assertFalse(self.calls('setprop'))
+        self.configure(calls=[])
+        result = self.run_policy('start')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.state()['properties']['sys.lightflow.guard'], '1')
+        self.assertFalse(self.calls('pm'))
+        self.assertFalse(self.calls('cli', ('modules', 'enable')))
+        self.assertFalse(self.calls('cli', ('scope', 'set')))
+
+    def test_prepare_requires_new_boot_when_loaded_code_cannot_be_verified(self):
+        for reason in ('missing-diagnostic', 'changed-apk'):
+            with self.subTest(reason=reason):
+                self.ready_for_next_boot()
+                self.configure(diagnostic_missing=reason == 'missing-diagnostic', calls=[])
+                if reason == 'changed-apk':
+                    self.apk.write_bytes(b'LightFlow signed guard fixture version 2\n')
+                expected_hash = hashlib.sha256(self.apk.read_bytes()).hexdigest()
+                result = self.run_policy('prepare')
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(self.receipt.read_text().splitlines(),
+                                 [BOOT_B, expected_hash, str(self.installed)])
+                self.configure(calls=[])
+                self.assert_stock(self.run_policy('start'))
+
+    def test_prepare_reinstallation_cannot_reuse_old_boot_despite_passing_loaded_hooks(self):
+        self.ready_for_next_boot()
+        # Receipt and payload identify A, but system_server loaded B this boot.
+        # Reinstalling A cannot change the code already loaded in that process.
+        self.installed.write_bytes(b'LightFlow guard B loaded in system_server\n')
+        self.configure(installed_targets=3, diagnostic_missing=False,
+                       diagnostic_disabled=False, self_check='PASS')
+        result = self.run_policy('prepare')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(len(self.calls('pm', ('install',))), 1)
+        self.assertEqual(self.installed.read_bytes(), self.apk.read_bytes())
+        self.assertEqual(self.receipt.read_text().splitlines(),
+                         [BOOT_B, self.digest, str(self.installed)])
+        self.assertFalse(self.calls('setprop'))
+        self.configure(calls=[])
+        self.assert_stock(self.run_policy('start'))
 
     def test_transient_install_failure_retries_then_verifies(self):
         self.configure(install_failures=2)
@@ -323,6 +378,15 @@ class GuardDeploymentTests(unittest.TestCase):
         result = self.run_policy('prepare')
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(self.receipt.exists())
+
+    def test_prepare_rechecks_installed_bytes_before_recording_verified_path(self):
+        self.configure(replace_apk_after_scope=True)
+        result = self.run_policy('prepare')
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(self.calls('cli', ('scope', 'set')))
+        self.assertFalse(self.receipt.exists())
+        self.assertNotEqual(self.installed.read_bytes(), self.apk.read_bytes())
+        self.assertFalse(self.calls('setprop'))
 
     def test_prepare_preflights_unavailable_services_before_install_or_mutation(self):
         for service in ('pm_unavailable', 'cli_unavailable'):
@@ -396,6 +460,61 @@ class GuardDeploymentTests(unittest.TestCase):
         self.ready_for_next_boot()
         self.installed.write_bytes(b'older installed APK')
         self.assert_stock(self.run_policy('start'))
+        self.assertFalse(self.calls('pm'))
+
+    def test_verified_path_receipt_activates_when_package_manager_is_unavailable(self):
+        self.ready_for_next_boot()
+        self.configure(pm_unavailable=True)
+        receipt_before = self.receipt.read_bytes()
+        result = self.run_policy('start')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.state()['properties']['sys.lightflow.guard'], '1')
+        self.assertEqual(self.receipt.read_bytes(), receipt_before)
+        self.assertFalse(self.calls('pm'), 'verified-path activation must not depend on boot PM')
+        self.assertTrue(self.calls('cli', ('modules', 'ls')))
+        self.assertTrue(self.calls('dumpsys'))
+
+    def test_start_refuses_tampered_recorded_path_without_pm_fallback(self):
+        self.ready_for_next_boot()
+        outside = self.base / 'outside/~~install/dev.lightflow.guard-test/base.apk'
+        wrong_package = self.base / 'data-app/~~install/dev.other.guard-test/base.apk'
+        for path in (outside, wrong_package):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(self.apk, path)
+        traversal = (str(self.base / 'data-app/~~install') +
+                     '/../~~install/dev.lightflow.guard-test/base.apk')
+        for path in (str(outside), str(wrong_package), traversal):
+            with self.subTest(path=path):
+                self.configure(calls=[])
+                # Every candidate resolves to matching bytes. Path validation,
+                # rather than a hash error or failed PM read, must reject it.
+                self.assertEqual(hashlib.sha256(Path(path).read_bytes()).hexdigest(), self.digest)
+                self.receipt.write_text(BOOT_A + '\n' + self.digest + '\n' + path + '\n')
+                self.assert_stock(self.run_policy('start'))
+                self.assertFalse(self.calls('pm'))
+
+    def test_start_refuses_missing_recorded_apk_without_pm_fallback(self):
+        self.ready_for_next_boot()
+        self.installed.unlink()
+        self.assert_stock(self.run_policy('start'))
+        self.assertFalse(self.calls('pm'))
+
+    def test_legacy_receipt_requires_bounded_pm_readback(self):
+        self.ready_for_next_boot()
+        self.receipt.write_text(BOOT_A + '\n' + self.digest + '\n')
+        result = self.run_policy('start')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.state()['properties']['sys.lightflow.guard'], '1')
+        reads = self.calls('pm', ('path', PKG))
+        self.assertTrue(reads)
+        self.assertTrue(all(call['deadline'] == '15' for call in reads))
+        self.configure(pm_unavailable=True, calls=[])
+        self.assert_stock(self.run_policy('start'))
+        probes = [call for call in self.calls('timeout')
+                  if call.get('command', [])[:3] == ['pm', 'path', PKG]]
+        self.assertEqual(len(probes), 3)
+        self.assertEqual([call['duration'] for call in probes], ['15'] * 3)
+        self.assertEqual([call['args'] for call in self.calls('sleep')], [['2'], ['2']])
 
     def test_start_refuses_user_ten_module_even_when_enabled(self):
         self.ready_for_next_boot()
@@ -471,7 +590,7 @@ class GuardDeploymentTests(unittest.TestCase):
 
     def test_cold_vector_response_above_five_seconds_fits_twenty_second_budget(self):
         self.ready_for_next_boot()
-        self.configure(cli_minimum_seconds=8)
+        self.configure(cli_minimum_seconds=8, diagnostic_missing=True)
         result = self.run_policy('prepare')
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         probes = [call for call in self.calls('timeout')
@@ -479,10 +598,13 @@ class GuardDeploymentTests(unittest.TestCase):
         self.assertTrue(probes)
         self.assertTrue(all(call['duration'] == '20' for call in probes))
         self.assertTrue(all(call['simulated_service_seconds'] == 8 for call in probes))
-        self.assertEqual(self.receipt.read_text().splitlines(), [BOOT_B, self.digest])
+        self.assertEqual(self.receipt.read_text().splitlines(),
+                         [BOOT_B, self.digest, str(self.installed)])
 
     def test_activation_bounds_pm_vector_and_diagnostic_reads(self):
         self.ready_for_next_boot()
+        # Only a legacy receipt may ask PackageManager for its APK at startup.
+        self.receipt.write_text(BOOT_A + '\n' + self.digest + '\n')
         result = self.run_policy('start')
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         for name, expected in (('pm', '15'), ('cli', '20'), ('dumpsys', '12')):
@@ -548,7 +670,8 @@ class GuardDeploymentTests(unittest.TestCase):
     def test_normal_installer_runs_verified_preparation_before_success(self):
         result = self.run_customize('true')
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(self.receipt.read_text().splitlines(), [BOOT_A, self.digest])
+        self.assertEqual(self.receipt.read_text().splitlines(),
+                         [BOOT_A, self.digest, str(self.installed)])
         self.assertFalse(self.calls('setprop'))
 
     def test_optional_codex_preparation_failure_preserves_guard_receipt(self):
@@ -556,7 +679,8 @@ class GuardDeploymentTests(unittest.TestCase):
             '#!' + self.shell + '\nexit 23\n')
         result = self.run_customize('true')
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(self.receipt.read_text().splitlines(), [BOOT_A, self.digest])
+        self.assertEqual(self.receipt.read_text().splitlines(),
+                         [BOOT_A, self.digest, str(self.installed)])
         self.assertIn('Codex launch helper preparation failed', result.stdout)
         self.assertIn('System guard preparation succeeded.', result.stdout)
         self.assertFalse(self.calls('setprop'))

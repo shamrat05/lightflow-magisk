@@ -1,6 +1,6 @@
 id=lightflow
 name=LightFlow Conservative Performance
-version=1.10.0-rc.5
-versionCode=38
+version=1.10.0-rc.6
+versionCode=39
 author=Codex
 description=RMX3741 Android 15 event-driven system_server OEM cleanup guard via existing Zygisk Next/Vector; no cache-killing timer. Preserves stock emergency LMKD, thermal controls and notification delivery paths. Runtime verification required.

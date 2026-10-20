@@ -6,7 +6,23 @@ does not prove better performance or battery life.
 
 ## Latest release: 1.9.10
 
-## Release candidate: 1.10.0-rc.5 system guard
+## Release candidate: 1.10.0-rc.6 system guard
+
+RC6 removes the verified boot activation dependency on `pm path`. Interactive
+preparation records a third receipt line containing the actual verified APK
+path. New boot activation validates that path and hashes the file directly;
+missing, redirected or changed files retain stock behavior. Legacy two-line
+receipts still use the bounded PM fallback. This fixes the specific gate that
+failed on the RC5 reboot even though both hooks and diagnostics loaded.
+
+For a script-only update, preparation may retain its previous boot boundary
+only when the installed APK is byte-identical and the actual loaded hooks and
+policy diagnostic pass. GitHub Actions reuses the original signed RC5 guard
+APK only for its exact unchanged source tree and pinned APK digest, with
+signature verification. The helper APK remains version38; the module is
+version39. This avoids a needless APK replacement and restart for this script
+correction. A changed guard source tree still builds/signs a new APK normally.
+
 
 RC5 retains RC4's corrected Vector deployment and fixes a second observed boot
 regression: the prepared Codex helper was correct, but its app-owned boot marker

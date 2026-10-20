@@ -68,7 +68,36 @@ jobs:
           tests.test_codex_policy.CodexPolicyTests.test_policy_gate_and_real_process_priority
           tests.test_codex_policy.CodexPolicyTests.test_already_lower_priority_is_preserved
 
+      - name: Select system guard by exact source tree
+        id: guard_source
+        run: |
+          set -euo pipefail
+          if [[ "$(git rev-parse HEAD:guard)" == b1f67279bbff591d75af382e802602cb7222367d ]]; then
+            echo 'reuse=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'reuse=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Reuse verified Actions-built RC5 system guard
+        if: steps.guard_source.outputs.reuse == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          reuse_dir=$(mktemp -d "$RUNNER_TEMP/lightflow-guard-reuse.XXXXXX")
+          gh release download v1.10.0-rc.5 --repo "$GITHUB_REPOSITORY" \
+            --pattern 'LightFlow-v1.10.0-rc.5.zip' --dir "$reuse_dir"
+          unzip -p "$reuse_dir/LightFlow-v1.10.0-rc.5.zip" guard.apk > "$reuse_dir/guard.apk"
+          printf '%s  %s\n' bca5f0d896cbb09d6f23c18a2146c48bf6fe1b1ad3dbd521a70111198338b8a4 \
+            "$reuse_dir/guard.apk" | sha256sum -c -
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs \
+            "$reuse_dir/guard.apk" > "$reuse_dir/apksigner.txt"
+          grep -Fqx 'Signer #1 certificate SHA-256 digest: ef4837bfc6394b1ada8b89ba46f196228441c5665203abd3dad5d01284b3ad7b' \
+            "$reuse_dir/apksigner.txt"
+          install -m 0644 "$reuse_dir/guard.apk" module/guard.apk
+
       - name: Build and verify signed system guard
+        if: steps.guard_source.outputs.reuse != 'true'
         env:
           LIGHTFLOW_GUARD_KEYSTORE_BASE64: ${{ secrets.LIGHTFLOW_GUARD_KEYSTORE_BASE64 }}
           LIGHTFLOW_GUARD_STORE_PASSWORD: ${{ secrets.LIGHTFLOW_GUARD_STORE_PASSWORD }}

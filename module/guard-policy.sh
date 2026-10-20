@@ -24,12 +24,23 @@ file_hash() (
   valid_hash "$hash_value" || exit 1
   printf '%s\n' "$hash_value"
 )
-installed_hash() (
+installed_apk_path() (
   path_output=$(bounded 15 pm path "$PKG") || exit 1
   installed_path=$(printf '%s\n' "$path_output" | sed -n 's/^package://p' | head -1)
   [ -n "$installed_path" ] || exit 1
+  printf '%s\n' "$installed_path"
+)
+installed_hash() (
+  installed_path=$(installed_apk_path) || exit 1
   file_hash "$installed_path"
 )
+valid_prepared_path() {
+  case "$1" in
+    *'/../'*|*'/./'*) return 1 ;;
+    /data/app/*/dev.lightflow.guard-*/base.apk) [ ! -L "$1" ] ;;
+    *) return 1 ;;
+  esac
+}
 json_success() { grep -q '"success"[[:space:]]*:[[:space:]]*true'; }
 module_enabled() {
   module_output=$(bounded 20 "$CLI" modules ls --json) || return 1
@@ -101,9 +112,13 @@ case "${1:-status}" in
     chmod 0644 "$temporary/guard.apk" || exit 1
     [ "$(file_hash "$temporary/guard.apk")" = "$packaged" ] || exit 1
     attempt=0
+    unchanged_install=0
     while :; do
       installed=$(installed_hash) || installed=
-      [ "$installed" != "$packaged" ] || break
+      if [ "$installed" = "$packaged" ]; then
+        [ "$attempt" -ne 0 ] || unchanged_install=1
+        break
+      fi
       attempt=$((attempt + 1))
       if [ "$attempt" -gt 3 ]; then
         fail 'APK preparation failed after 3 bounded attempts; no activation prepared'; exit 1
@@ -136,33 +151,63 @@ case "${1:-status}" in
       printf '%s\n' "$scope_result" >&2
       fail 'APK verified, but system/0 scope readback failed; no activation prepared'; exit 1
     fi
+    # Save the verified immutable install path while PM is available. Boot
+    # activation can hash that file without a package-service transaction.
+    verified_path=$(installed_apk_path) || exit 1
+    if ! valid_prepared_path "$verified_path" ||
+        [ "$(file_hash "$verified_path")" != "$packaged" ]; then
+      fail 'installed APK path or final hash changed; no activation prepared'; exit 1
+    fi
+    activation_boot=$boot_id
+    previous_boot=$(sed -n '1p' "$RECEIPT" 2>/dev/null)
+    previous_hash=$(sed -n '2p' "$RECEIPT" 2>/dev/null)
+    # A script-only update may retain its proven boot boundary. Require the
+    # exact same APK and the actual loaded hooks, never registration alone.
+    if [ "$unchanged_install" = 1 ] && [ -n "$previous_boot" ] && [ "$previous_boot" != "$boot_id" ] &&
+        [ "$previous_hash" = "$packaged" ] && runtime_ready; then
+      activation_boot=$previous_boot
+    fi
     mkdir -p "$STATE" || exit 1
     chmod 0700 "$STATE" || exit 1
-    printf '%s\n%s\n' "$boot_id" "$packaged" > "$STATE/.prepared.$$" || exit 1
+    printf '%s\n%s\n%s\n' "$activation_boot" "$packaged" "$verified_path" > "$STATE/.prepared.$$" || exit 1
     chmod 0600 "$STATE/.prepared.$$" || exit 1
     mv "$STATE/.prepared.$$" "$RECEIPT" || exit 1
-    echo 'LightFlow guard APK and Vector scope verified before reboot; runtime activation pending.'
+    if [ "$activation_boot" = "$boot_id" ]; then
+      echo 'LightFlow guard APK and Vector scope verified before reboot; runtime activation pending.'
+    else
+      echo 'LightFlow unchanged APK and loaded hooks verified; previous boot preparation retained.'
+    fi
     ;;
   start)
     setprop sys.lightflow.guard 0 || exit 1
     supported || exit 1
     sh "$MODDIR/memory-watchdog.sh" stop || exit 1
     packaged=$(file_hash "$MODDIR/guard.apk") || exit 1
-    # Early boot can transiently reject even a read-only package transaction.
-    # Retry that read; never replace an APK after system_server has started.
-    attempt=0
-    installed=
-    while [ -z "$installed" ]; do
-      installed=$(installed_hash) || installed=
-      [ -z "$installed" ] || break
-      attempt=$((attempt + 1))
-      if [ "$attempt" -ge 3 ]; then
-        fail 'package readback unavailable after 3 bounded attempts; stock policy retained'; exit 1
-      fi
-      sleep 2
-    done
     prepared_boot=$(sed -n '1p' "$RECEIPT" 2>/dev/null)
     prepared_hash=$(sed -n '2p' "$RECEIPT" 2>/dev/null)
+    prepared_path=$(sed -n '3p' "$RECEIPT" 2>/dev/null)
+    if [ -n "$prepared_path" ]; then
+      valid_prepared_path "$prepared_path" || {
+        fail 'invalid prepared APK path; stock policy retained'; exit 1;
+      }
+      installed=$(file_hash "$prepared_path") || {
+        fail 'prepared APK file unavailable; stock policy retained'; exit 1;
+      }
+    else
+      # Compatibility for a two-line receipt from older installers only.
+      # New preparations never depend on PM responding during boot.
+      attempt=0
+      installed=
+      while [ -z "$installed" ]; do
+        installed=$(installed_hash) || installed=
+        [ -z "$installed" ] || break
+        attempt=$((attempt + 1))
+        if [ "$attempt" -ge 3 ]; then
+          fail 'legacy package readback unavailable after 3 bounded attempts; stock policy retained'; exit 1
+        fi
+        sleep 2
+      done
+    fi
     boot_id=$(cat "$BOOT_FILE") || exit 1
     [ -n "$boot_id" ] || { fail 'boot identity unavailable; stock policy retained'; exit 1; }
     if ! valid_hash "$prepared_hash" || [ "$prepared_hash" != "$packaged" ] ||
