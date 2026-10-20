@@ -67,15 +67,17 @@ jobs:
         run: bash build.sh
 
       - name: Checksum LightFlow ZIP
-        run: sha256sum dist/LightFlow-v*.zip > dist/LightFlow-${GITHUB_REF_NAME}.sha256
+        run: |
+          version=$(sed -n 's/^version=//p' module/module.prop)
+          sha256sum "dist/LightFlow-v${version}.zip" > "dist/LightFlow-v${version}.sha256"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LightFlow-${{ github.ref_name }}
+          name: LightFlow-${{ github.run_id }}
           path: |
             dist/LightFlow-v*.zip
-            dist/LightFlow-${{ github.ref_name }}.sha256
+            dist/LightFlow-v*.sha256
             module/guard.apk
 
       - name: Publish GitHub release
@@ -86,7 +88,7 @@ jobs:
           extra=()
           [[ "$GITHUB_REF_NAME" == *-rc.* ]] && extra+=(--prerelease)
           gh release create "$GITHUB_REF_NAME" "${extra[@]}" \
-            dist/LightFlow-v*.zip dist/LightFlow-${GITHUB_REF_NAME}.sha256 \
+            dist/LightFlow-v*.zip dist/LightFlow-v*.sha256 \
             --repo "$GITHUB_REPOSITORY" \
             --title "LightFlow $GITHUB_REF_NAME" \
             --notes-file "RELEASE-${GITHUB_REF_NAME}.md"
