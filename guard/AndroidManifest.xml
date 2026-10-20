@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="dev.lightflow.guard" android:versionCode="36" android:versionName="1.10.0-rc.3">
+    package="dev.lightflow.guard" android:versionCode="37" android:versionName="1.10.0-rc.4">
     <uses-sdk android:minSdkVersion="35" android:targetSdkVersion="35" />
     <application android:label="LightFlow System Guard" android:allowBackup="false"
         android:hasCode="true">

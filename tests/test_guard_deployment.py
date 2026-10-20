@@ -69,8 +69,18 @@ elif name == 'timeout':
     state['calls'][-1].update(duration=duration, kill_after=kill_after,
                               command=[Path(command[0]).name, *command[1:]])
     target = ' '.join([Path(command[0]).name, *command[1:2]])
+    if (Path(command[0]).name == 'cli' and command[1:3] == ['modules', 'ls']
+            and state.get('inventory_timeouts_remaining', 0) > 0):
+        state['inventory_timeouts_remaining'] -= 1
+        state['calls'][-1]['simulated_inventory_timeout'] = True
+        save()
+        raise SystemExit(124)
+    # Simulate a slow service without delaying the suite. A cold Vector read
+    # observed above five seconds must not be rejected by a five-second budget.
+    minimum = state.get('cli_minimum_seconds', 0) if Path(command[0]).name == 'cli' else 0
+    state['calls'][-1]['simulated_service_seconds'] = minimum
     save()
-    if target in state.get('timeout_commands', []):
+    if target in state.get('timeout_commands', []) or float(duration) < minimum:
         raise SystemExit(124)
     env = dict(os.environ, GUARD_DEPLOYMENT_TEST_DEADLINE=duration)
     raise SystemExit(subprocess.run(command, env=env, timeout=5).returncode)
@@ -115,7 +125,12 @@ elif name == 'cli':
         finish(json.dumps({'data': rows, 'success': True}, indent=2))
     if args[:2] == ['scope', 'set']:
         if not state.get('scope_noop'):
-            state['scope_rows'] = [{'APP_PACKAGE': 'android', 'USER_ID': 0}]
+            # Vector stores precisely the requested rows; it does not invent a
+            # system/0 alias for android/0. This catches the RC3 regression.
+            state['scope_rows'] = [
+                {'APP_PACKAGE': target.rsplit('/', 1)[0],
+                 'USER_ID': int(target.rsplit('/', 1)[1])}
+                for target in args[3:] if not target.startswith('--')]
         finish('{"success": true}')
     if args[:2] == ['scope', 'ls']:
         finish(json.dumps({'data': state['scope_rows'], 'success': True}, indent=2))
@@ -163,7 +178,8 @@ class GuardDeploymentTests(unittest.TestCase):
                            'sys.boot_completed': '1',
                            'sys.lightflow.guard': '1'},
             'module_status': 'enabled',
-            'scope_rows': [{'APP_PACKAGE': 'android', 'USER_ID': 0}],
+            'scope_rows': [{'APP_PACKAGE': 'android', 'USER_ID': 0},
+                           {'APP_PACKAGE': 'system', 'USER_ID': 0}],
         }))
         for name in ('getprop', 'setprop', 'pm', 'cli', 'dumpsys', 'timeout',
                      'sleep', 'watchdog', 'chown', 'set_perm'):
@@ -255,7 +271,10 @@ class GuardDeploymentTests(unittest.TestCase):
         self.assertEqual(self.receipt.stat().st_mode & 0o777, 0o600)
         self.assertEqual(self.receipt.parent.stat().st_mode & 0o777, 0o700)
         self.assertTrue(self.calls('cli', ('modules', 'enable')))
-        self.assertTrue(self.calls('cli', ('scope', 'set')))
+        scope_set = self.calls('cli', ('scope', 'set'))
+        self.assertTrue(scope_set)
+        self.assertIn('system/0', scope_set[-1]['args'])
+        self.assertIn({'APP_PACKAGE': 'system', 'USER_ID': 0}, self.state()['scope_rows'])
 
     def test_matching_apk_skips_install_and_records_current_boot(self):
         self.ready_for_next_boot()
@@ -298,8 +317,9 @@ class GuardDeploymentTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(self.receipt.exists())
 
-    def test_scope_set_success_requires_actual_android_user_zero_readback(self):
-        self.configure(scope_noop=True, scope_rows=[{'APP_PACKAGE': 'android', 'USER_ID': 10}])
+    def test_scope_set_success_requires_actual_system_user_zero_readback(self):
+        self.configure(scope_noop=True, scope_rows=[{'APP_PACKAGE': 'system', 'USER_ID': 10},
+                                                  {'APP_PACKAGE': 'android', 'USER_ID': 0}])
         result = self.run_policy('prepare')
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(self.receipt.exists())
@@ -322,9 +342,7 @@ class GuardDeploymentTests(unittest.TestCase):
         for call in self.calls():
             if call['name'] not in ('pm', 'cli'):
                 continue
-            mutation = call['args'][:1] == ['install'] or call['args'][:2] in (
-                ['modules', 'enable'], ['scope', 'set'])
-            expected = '15' if call['args'][:1] == ['install'] else '10' if mutation else '5'
+            expected = '20' if call['name'] == 'cli' else '15'
             self.assertEqual(call['deadline'], expected, call)
         self.assertTrue(self.calls('timeout'))
 
@@ -399,16 +417,79 @@ class GuardDeploymentTests(unittest.TestCase):
 
     def test_start_refuses_wrong_scope_without_combining_unrelated_rows(self):
         self.ready_for_next_boot()
-        self.configure(scope_rows=[{'APP_PACKAGE': 'android', 'USER_ID': 10},
-                                   {'APP_PACKAGE': 'system', 'USER_ID': 0}])
+        self.configure(scope_rows=[{'APP_PACKAGE': 'system', 'USER_ID': 10},
+                                   {'APP_PACKAGE': 'android', 'USER_ID': 0}])
         self.assert_stock(self.run_policy('start'))
 
-    def test_start_accepts_android_scope_with_vector_system_alias(self):
+    def test_start_accepts_android_and_system_scope(self):
         self.ready_for_next_boot()
         self.configure(scope_rows=[{'APP_PACKAGE': 'android', 'USER_ID': 0},
                                    {'APP_PACKAGE': 'system', 'USER_ID': 0}])
         result = self.run_policy('start')
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_start_refuses_android_only_scope_even_with_all_runtime_diagnostics(self):
+        self.ready_for_next_boot()
+        self.configure(scope_rows=[{'APP_PACKAGE': 'android', 'USER_ID': 0}])
+        self.assert_stock(self.run_policy('start'))
+
+    def test_start_accepts_system_only_scope_for_system_server(self):
+        self.ready_for_next_boot()
+        self.configure(scope_rows=[{'APP_PACKAGE': 'system', 'USER_ID': 0}])
+        result = self.run_policy('start')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.state()['properties']['sys.lightflow.guard'], '1')
+
+    def test_start_recovers_from_one_transient_vector_inventory_timeout(self):
+        self.ready_for_next_boot()
+        receipt_before = self.receipt.read_bytes()
+        self.configure(inventory_timeouts_remaining=1)
+        result = self.run_policy('start')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.state()['properties']['sys.lightflow.guard'], '1')
+        probes = [call for call in self.calls('timeout')
+                  if call.get('command', [])[:3] == ['cli', 'modules', 'ls']]
+        self.assertEqual(len(probes), 2)
+        self.assertEqual([call['duration'] for call in probes], ['20', '20'])
+        self.assertTrue(probes[0].get('simulated_inventory_timeout'))
+        self.assertEqual([call['args'] for call in self.calls('sleep')], [['2']])
+        self.assertEqual(self.receipt.read_bytes(), receipt_before)
+        self.assertFalse(self.calls('pm', ('install',)))
+        self.assertFalse(self.calls('cli', ('modules', 'enable')))
+        self.assertFalse(self.calls('cli', ('scope', 'set')))
+
+    def test_start_retains_stock_after_three_vector_inventory_timeouts(self):
+        self.ready_for_next_boot()
+        self.configure(inventory_timeouts_remaining=3)
+        self.assert_stock(self.run_policy('start'))
+        probes = [call for call in self.calls('timeout')
+                  if call.get('command', [])[:3] == ['cli', 'modules', 'ls']]
+        self.assertEqual(len(probes), 3)
+        self.assertEqual([call['duration'] for call in probes], ['20'] * 3)
+        self.assertTrue(all(call.get('simulated_inventory_timeout') for call in probes))
+        self.assertEqual([call['args'] for call in self.calls('sleep')], [['2'], ['2']])
+
+    def test_cold_vector_response_above_five_seconds_fits_twenty_second_budget(self):
+        self.ready_for_next_boot()
+        self.configure(cli_minimum_seconds=8)
+        result = self.run_policy('prepare')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        probes = [call for call in self.calls('timeout')
+                  if call.get('command', [])[:1] == ['cli']]
+        self.assertTrue(probes)
+        self.assertTrue(all(call['duration'] == '20' for call in probes))
+        self.assertTrue(all(call['simulated_service_seconds'] == 8 for call in probes))
+        self.assertEqual(self.receipt.read_text().splitlines(), [BOOT_B, self.digest])
+
+    def test_activation_bounds_pm_vector_and_diagnostic_reads(self):
+        self.ready_for_next_boot()
+        result = self.run_policy('start')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        for name, expected in (('pm', '15'), ('cli', '20'), ('dumpsys', '12')):
+            probes = self.calls(name)
+            self.assertTrue(probes)
+            self.assertTrue(all(call['deadline'] == expected for call in probes), probes)
+        self.assertEqual(self.calls('dumpsys')[-1]['args'][:2], ['-t', '10'])
 
     def test_start_refuses_missing_incomplete_or_failed_hook_diagnostics(self):
         self.ready_for_next_boot()

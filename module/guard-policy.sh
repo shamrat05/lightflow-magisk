@@ -25,14 +25,14 @@ file_hash() (
   printf '%s\n' "$hash_value"
 )
 installed_hash() (
-  path_output=$(bounded 5 pm path "$PKG") || exit 1
+  path_output=$(bounded 15 pm path "$PKG") || exit 1
   installed_path=$(printf '%s\n' "$path_output" | sed -n 's/^package://p' | head -1)
   [ -n "$installed_path" ] || exit 1
   file_hash "$installed_path"
 )
 json_success() { grep -q '"success"[[:space:]]*:[[:space:]]*true'; }
 module_enabled() {
-  module_output=$(bounded 5 "$CLI" modules ls --json) || return 1
+  module_output=$(bounded 20 "$CLI" modules ls --json) || return 1
   printf '%s\n' "$module_output" | json_success || return 1
   # Check one owner-user object; another user's module cannot stand in for it.
   printf '%s\n' "$module_output" | awk 'BEGIN { RS="}" }
@@ -42,16 +42,17 @@ module_enabled() {
     END { exit !found }'
 }
 scope_ready() {
-  scope_output=$(bounded 5 "$CLI" scope ls "$PKG" --json) || return 1
+  scope_output=$(bounded 20 "$CLI" scope ls "$PKG" --json) || return 1
   printf '%s\n' "$scope_output" | json_success || return 1
-  # Vector's additional system/0 alias is valid. Match package and user within
-  # one object, not values from two different scope entries.
+  # Vector 3080 queries the literal "system" database row for system_server.
+  # "android" is an ordinary package scope, not an alias for this row.
+  # Match package and user within one object.
   printf '%s\n' "$scope_output" | awk 'BEGIN { RS="}" }
-    /"APP_PACKAGE"[[:space:]]*:[[:space:]]*"android"/ &&
+    /"APP_PACKAGE"[[:space:]]*:[[:space:]]*"system"/ &&
     /"USER_ID"[[:space:]]*:[[:space:]]*0([[:space:]]|,|$)/ { found=1 }
     END { exit !found }'
 }
-runtime_diagnostic() { bounded 7 dumpsys -t 5 activity athena lightflow; }
+runtime_diagnostic() { bounded 12 dumpsys -t 10 activity athena lightflow; }
 runtime_ready() {
   diagnostic=$(runtime_diagnostic) || return 1
   printf '%s\n' "$diagnostic" | grep -q '^LightFlow System Guard ' || return 1
@@ -71,8 +72,8 @@ case "${1:-status}" in
   stop) setprop sys.lightflow.guard 0; exit $? ;;
   status)
     echo "System guard enabled: $(getprop sys.lightflow.guard)"
-    bounded 5 pm path "$PKG" 2>/dev/null || true
-    [ ! -x "$CLI" ] || bounded 5 "$CLI" scope ls "$PKG" --json
+    bounded 15 pm path "$PKG" 2>/dev/null || true
+    [ ! -x "$CLI" ] || bounded 20 "$CLI" scope ls "$PKG" --json
     if runtime_ready; then printf '%s\n' "$diagnostic"; else
       echo 'Runtime diagnostic unavailable or incomplete; registration does not prove hook execution.'
     fi
@@ -80,10 +81,10 @@ case "${1:-status}" in
   prepare)
     supported || exit 1
     # Prepare during interactive installation, before system_server's next boot.
-    bounded 5 pm list packages --user 0 "$PKG" >/dev/null || {
+    bounded 15 pm list packages --user 0 "$PKG" >/dev/null || {
       fail 'Android package service unavailable; install from Magisk after Android starts'; exit 1;
     }
-    preflight=$(bounded 5 "$CLI" modules ls --json) || {
+    preflight=$(bounded 20 "$CLI" modules ls --json) || {
       fail 'Vector unavailable; finish its setup before installing LightFlow'; exit 1;
     }
     printf '%s\n' "$preflight" | json_success || {
@@ -120,7 +121,7 @@ case "${1:-status}" in
     attempt=0
     while :; do
       attempt=$((attempt + 1))
-      if enable_output=$(bounded 10 "$CLI" modules enable "$PKG" --json) &&
+      if enable_output=$(bounded 20 "$CLI" modules enable "$PKG" --json) &&
           printf '%s\n' "$enable_output" | json_success && module_enabled; then break; fi
       printf '%s\n' "$enable_output" >&2
       if [ "$attempt" -ge 3 ]; then
@@ -128,12 +129,12 @@ case "${1:-status}" in
       fi
       sleep 2
     done
-    scope_result=$(bounded 10 "$CLI" scope set "$PKG" android/0 --json) || {
+    scope_result=$(bounded 20 "$CLI" scope set "$PKG" android/0 system/0 --json) || {
       fail 'APK verified, but Vector scope setup failed; rerun installation'; exit 1;
     }
     if ! printf '%s\n' "$scope_result" | json_success || ! scope_ready; then
       printf '%s\n' "$scope_result" >&2
-      fail 'APK verified, but android/0 scope readback failed; no activation prepared'; exit 1
+      fail 'APK verified, but system/0 scope readback failed; no activation prepared'; exit 1
     fi
     mkdir -p "$STATE" || exit 1
     chmod 0700 "$STATE" || exit 1
@@ -147,7 +148,19 @@ case "${1:-status}" in
     supported || exit 1
     sh "$MODDIR/memory-watchdog.sh" stop || exit 1
     packaged=$(file_hash "$MODDIR/guard.apk") || exit 1
-    installed=$(installed_hash) || installed=
+    # Early boot can transiently reject even a read-only package transaction.
+    # Retry that read; never replace an APK after system_server has started.
+    attempt=0
+    installed=
+    while [ -z "$installed" ]; do
+      installed=$(installed_hash) || installed=
+      [ -z "$installed" ] || break
+      attempt=$((attempt + 1))
+      if [ "$attempt" -ge 3 ]; then
+        fail 'package readback unavailable after 3 bounded attempts; stock policy retained'; exit 1
+      fi
+      sleep 2
+    done
     prepared_boot=$(sed -n '1p' "$RECEIPT" 2>/dev/null)
     prepared_hash=$(sed -n '2p' "$RECEIPT" 2>/dev/null)
     boot_id=$(cat "$BOOT_FILE") || exit 1
@@ -159,9 +172,15 @@ case "${1:-status}" in
     if [ "$boot_id" = "$prepared_boot" ]; then
       fail 'prepared this boot; reboot to load the verified APK. Stock policy retained.'; exit 1
     fi
-    if ! module_enabled || ! scope_ready || ! runtime_ready; then
-      fail 'runtime hooks or Vector registration incomplete; guard stays disabled, stock policy retained'; exit 1
-    fi
+    attempt=0
+    while :; do
+      if module_enabled && scope_ready && runtime_ready; then break; fi
+      attempt=$((attempt + 1))
+      if [ "$attempt" -ge 3 ]; then
+        fail 'runtime hooks or Vector registration incomplete after 3 bounded attempts; stock policy retained'; exit 1
+      fi
+      sleep 2
+    done
     setprop sys.lightflow.guard 1 || exit 1
     if [ "$(getprop sys.lightflow.guard)" != 1 ]; then
       setprop sys.lightflow.guard 0

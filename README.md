@@ -6,7 +6,15 @@ does not prove better performance or battery life.
 
 ## Latest release: 1.9.10
 
-## Release candidate: 1.10.0-rc.3 system guard
+## Release candidate: 1.10.0-rc.4 system guard
+
+RC4 corrects Vector 2.2 build 3080's actual system-server scope: the daemon
+requires the literal `system/0` entry. `android/0` is not an automatic alias,
+and replacing the scope with only `android/0` prevented the guard from loading.
+Preparation now records both entries, and activation requires `system/0`.
+CLI deadlines also cover the device's observed cold-start latency, with bounded
+retries for transient boot-time package reads. These changes are covered by
+regressions whose scope fixture no longer invents aliases.
 
 RC3 fixes the verified guard deployment failure. The Magisk installer prepares
 and verifies the APK and Vector scope before reboot. Boot activation never

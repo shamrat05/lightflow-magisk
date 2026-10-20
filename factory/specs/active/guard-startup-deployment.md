@@ -12,7 +12,7 @@ Riskiest assumption: package registration can differ from code already loaded in
 
 Out of scope: changing pressure thresholds, thermal or CPU policies, refresh overrides, per-app keepalive lists, new polling, app data removal, forced system_server restart, or automatic reboot. This fixes deployment of the existing system-level optimization, not all scrolling jank.
 
-Decisions: use documented BOOTMODE/MODPATH/abort installer API; require normal Android/Magisk app installation, not recovery. Preflight Android PM and Vector before external changes. Use unique temporary staging, verified hashes, bounded retries, accurate scope readback including valid system/0 alias, and atomic root-private preparation receipt.
+Decisions: use documented BOOTMODE/MODPATH/abort installer API; require normal Android/Magisk app installation, not recovery. Preflight Android PM and Vector before external changes. Use unique temporary staging, verified hashes, bounded retries, accurate scope readback requiring Vector’s literal system/0 entry, and atomic root-private preparation receipt.
 
 Acceptance criteria:
 
@@ -27,3 +27,9 @@ Acceptance criteria:
 - Build/sign/release in GitHub Actions, preserve installed signing identity, install resulting release before requesting another user reboot.
 
 Verification commands: targeted Python deployment tests; existing system guard policy tests; portable release test gate; shell syntax checks; independent diff review through Loop Factory. Device evidence must distinguish prepared APK, running system_server code, and real cleanup callbacks. Never invoke a cleanup action merely to make a counter increase.
+
+## RC4 correction from actual device and framework source
+
+RC3's reboot did not load the module. Exact Vector 3080 commit `88f8e1fa` shows `ModuleDatabase.systemServerModuleRows()` querying only `app_pkg_name="system"`; ConfigCache maps that row to system_server. The CLI scope setter deletes previous entries before writing its supplied list. The earlier assumption that android/0 automatically expands into system/0 was false and is rejected by the revised test fixture. Require system/0 in readback; preserve android/0 additionally for package compatibility.
+
+Live CLI module inventory also exceeded the original five-second deadline. PM reads now have fifteen-second deadlines, CLI reads/writes twenty seconds, and the diagnostic twelve seconds with its own ten-second dumpsys timeout. Transient package read failures retry at most three times without installing anything during boot. Exact Vector legacy callback source confirms packageName="android" and the server ClassLoader, so the Java entry filter remains correct.
