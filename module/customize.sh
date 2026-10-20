@@ -6,7 +6,7 @@
 if [ "${BOOTMODE:-false}" != true ]; then
   abort 'Install LightFlow from Magisk after Android and Vector are running; recovery cannot prepare the injected guard.'
 fi
-for required in service.sh action.sh uninstall.sh guard-policy.sh guard.apk memory-pressure-policy.sh memory-watchdog.sh; do
+for required in service.sh action.sh uninstall.sh guard-policy.sh guard.apk memory-pressure-policy.sh memory-watchdog.sh codex-launcher.sh codex-policy.sh codex-user-install.sh; do
   if [ ! -s "$MODPATH/$required" ]; then
     abort "LightFlow archive incomplete: missing $required"
   fi
@@ -29,4 +29,10 @@ fi
 # Prepare the APK before the reboot that loads it into system_server.
 if ! sh "$MODPATH/guard-policy.sh" prepare; then
   abort 'Guard preparation failed. A verified helper APK may already be installed; Android data was preserved. Fix the reported PM/Vector error and retry.'
+fi
+
+# Prepare the optional known Termux wrapper while Android is interactive.
+# Unknown or edited launchers retain the installer's existing hash protections.
+if ! /system/bin/timeout -k 2 20 sh "$MODPATH/codex-launcher.sh"; then
+  ui_print 'Codex launch helper preparation failed; existing launcher preserved. System guard preparation succeeded.'
 fi

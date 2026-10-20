@@ -1,6 +1,7 @@
 import hashlib
 import os
 from pathlib import Path
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -63,6 +64,83 @@ class CodexPolicyTests(unittest.TestCase):
     def assert_install_ok(self, *args):
         result = self.install(*args)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def prepare_policy_fixture(self):
+        """Keep direct process tests independent of the device's boot token."""
+        self.property_value = self.base/'property-value'
+        self.property_value.write_text('')
+        self.property_failure = self.base/'property-failure'
+        self.property_calls = self.base/'property-calls'
+        getprop = self.base/'getprop'
+        getprop.write_text(
+            f'#!{shutil.which("sh")}\n'
+            '[ "$#" -eq 1 ] && [ "$1" = sys.lightflow.codex.boot ] || exit 91\n'
+            f'printf "%s\\n" "$1" >> {shlex.quote(str(self.property_calls))}\n'
+            f'[ ! -e {shlex.quote(str(self.property_failure))} ] || exit 23\n'
+            f'cat {shlex.quote(str(self.property_value))}\n')
+        getprop.chmod(0o755)
+        prefix = self.base/'policy-prefix'
+        tools = prefix/'bin'
+        tools.mkdir(parents=True)
+        for name in ('stat', 'id', 'ps', 'renice', 'taskset'):
+            command = shutil.which(name)
+            if command is None:
+                self.skipTest(f'{name} is required for real process checks')
+            (tools/name).symlink_to(command)
+        source = (ROOT/'module/codex-policy.sh').read_text()
+        # Assert the seams are effective: never consult a live Android property.
+        self.assertEqual(source.count('/system/bin/getprop'), 1)
+        original_prefix = 'prefix=/data/data/com.termux/files/usr'
+        self.assertEqual(source.count(original_prefix), 1)
+        self.policy = self.base/'codex-policy.sh'
+        self.policy.write_text(source.replace('/system/bin/getprop', shlex.quote(str(getprop)))
+                               .replace(original_prefix, f'prefix={shlex.quote(str(prefix))}'))
+
+    def run_policy(self, pid):
+        return subprocess.run(['sh', str(self.policy), str(pid)], env=self.env,
+                              text=True, capture_output=True, timeout=8)
+
+    def assert_property_gate(self, value, marker, *, applies, failure=False):
+        self.user.mkdir(exist_ok=True)
+        marker_file = self.user/'codex-boot-id'
+        if marker is None:
+            marker_file.unlink(missing_ok=True)
+        else:
+            marker_file.write_text(marker + '\n')
+        self.property_value.write_text(value + '\n')
+        if failure:
+            self.property_failure.touch()
+        calls_before = (self.property_calls.read_text().splitlines()
+                        if self.property_calls.exists() else [])
+        child = subprocess.Popen(['sleep', '20'])
+        try:
+            original = os.getpriority(os.PRIO_PROCESS, child.pid)
+            affinity = os.sched_getaffinity(child.pid)
+            candidates = [cpu for cpu in affinity if cpu < 32]
+            if not candidates:
+                self.skipTest('policy CPU mask supports CPUs below 32')
+            selected = min(candidates)
+            # A real affinity change distinguishes an accepted gate even when
+            # the test runner already inherited LightFlow's nice 5 policy.
+            if applies and len(affinity) == 1 and original >= 5:
+                self.skipTest('need a schedulable change to verify gate acceptance')
+            cpu_root = self.base/'cpu-fixture'
+            for cpu, capacity in ((selected, 512), ((selected + 1) % 32, 1024)):
+                directory = cpu_root/f'cpu{cpu}'
+                directory.mkdir(parents=True, exist_ok=True)
+                (directory/'cpu_capacity').write_text(f'{capacity}\n')
+            self.env['LIGHTFLOW_CPU_ROOT'] = str(cpu_root)
+            result = self.run_policy(child.pid)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(os.getpriority(os.PRIO_PROCESS, child.pid),
+                             max(original, 5) if applies else original)
+            self.assertEqual(os.sched_getaffinity(child.pid),
+                             {selected} if applies else affinity)
+            self.assertEqual(self.property_calls.read_text().splitlines(),
+                             calls_before + ['sys.lightflow.codex.boot'])
+        finally:
+            child.terminate()
+            child.wait(timeout=3)
 
     def test_fixture_and_install_are_exact_and_idempotent(self):
         self.assertEqual(hashlib.sha256(LAUNCHER).hexdigest(),
@@ -325,6 +403,7 @@ class CodexPolicyTests(unittest.TestCase):
         self.assertFalse((self.user/'codex-policy.sh').exists())
 
     def test_policy_gate_and_real_process_priority(self):
+        self.prepare_policy_fixture()
         self.user.mkdir()
         marker = self.user/'codex-boot-id'
         marker.write_text('old-boot\n')
@@ -332,24 +411,23 @@ class CodexPolicyTests(unittest.TestCase):
         try:
             original = os.getpriority(os.PRIO_PROCESS, child.pid)
             affinity = os.sched_getaffinity(child.pid)
-            command = ['sh', str(ROOT/'module/codex-policy.sh'), str(child.pid)]
-            stale = subprocess.run(command, env=self.env, capture_output=True)
+            stale = self.run_policy(child.pid)
             self.assertEqual(stale.returncode, 0)
             self.assertEqual(os.getpriority(os.PRIO_PROCESS, child.pid), original)
             self.assertEqual(os.sched_getaffinity(child.pid), affinity)
             marker.write_text('test-boot\n')
-            valid = subprocess.run(command, env=self.env, capture_output=True)
-            self.assertEqual(valid.returncode, 0, valid.stderr.decode())
+            valid = self.run_policy(child.pid)
+            self.assertEqual(valid.returncode, 0, valid.stderr)
             self.assertEqual(os.getpriority(os.PRIO_PROCESS, child.pid), max(original, 5))
             self.assertTrue(os.sched_getaffinity(child.pid).issubset(affinity))
-            invalid = subprocess.run(['sh', str(ROOT/'module/codex-policy.sh'), 'bad-pid'],
-                                     env=self.env, capture_output=True)
+            invalid = self.run_policy('bad-pid')
             self.assertNotEqual(invalid.returncode, 0)
         finally:
             child.terminate()
             child.wait(timeout=3)
 
     def test_already_lower_priority_is_preserved(self):
+        self.prepare_policy_fixture()
         self.user.mkdir()
         (self.user/'codex-boot-id').write_text('test-boot\n')
         child = subprocess.Popen(['nice', '-n', '19', 'sleep', '20'])
@@ -362,13 +440,39 @@ class CodexPolicyTests(unittest.TestCase):
                     break
                 time.sleep(.01)
             self.assertGreaterEqual(priority, 9)
-            result = subprocess.run(['sh', str(ROOT/'module/codex-policy.sh'), str(child.pid)],
-                                    env=self.env, capture_output=True)
+            result = self.run_policy(child.pid)
             self.assertEqual(result.returncode, 0)
             self.assertEqual(os.getpriority(os.PRIO_PROCESS, child.pid), priority)
         finally:
             child.terminate()
             child.wait(timeout=3)
+
+    def test_current_property_applies_with_stale_or_missing_marker(self):
+        self.prepare_policy_fixture()
+        for marker in ('old-boot', None):
+            with self.subTest(marker=marker):
+                self.assert_property_gate('test-boot', marker, applies=True)
+
+    def test_disabled_property_refuses_current_legacy_marker(self):
+        self.prepare_policy_fixture()
+        self.assert_property_gate('0', 'test-boot', applies=False)
+
+    def test_stale_property_refuses_current_legacy_marker(self):
+        self.prepare_policy_fixture()
+        self.assert_property_gate('old-boot', 'test-boot', applies=False)
+
+    def test_empty_property_allows_current_legacy_marker(self):
+        self.prepare_policy_fixture()
+        self.assert_property_gate('', 'test-boot', applies=True)
+
+    def test_failed_property_read_refuses_current_legacy_marker(self):
+        self.prepare_policy_fixture()
+        self.assert_property_gate('', 'test-boot', applies=False, failure=True)
+
+    def test_empty_current_boot_never_applies_policy(self):
+        self.prepare_policy_fixture()
+        self.boot.write_text('\n')
+        self.assert_property_gate('test-boot', 'test-boot', applies=False)
 
 
 if __name__ == '__main__':

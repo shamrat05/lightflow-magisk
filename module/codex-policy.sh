@@ -1,11 +1,15 @@
 #!/system/bin/sh
 
 # Runs as Termux, once before exec. No root call, daemon or extra wakeup job.
-# The marker belongs to the boot where the enabled module installed this helper.
+# The module publishes a volatile boot token; no per-boot app-directory write
+# is needed for an already prepared helper. Older modules use the file marker.
 state_dir=${LIGHTFLOW_CODEX_STATE:-/data/data/com.termux/files/home/.lightflow}
 boot_file=${LIGHTFLOW_BOOT_ID_FILE:-/proc/sys/kernel/random/boot_id}
-read -r applied_boot 2>/dev/null < "$state_dir/codex-boot-id" || exit 0
 read -r current_boot 2>/dev/null < "$boot_file" || exit 0
+applied_boot=$(/system/bin/getprop sys.lightflow.codex.boot 2>/dev/null) || exit 0
+if [ -z "$applied_boot" ]; then
+  read -r applied_boot 2>/dev/null < "$state_dir/codex-boot-id" || exit 0
+fi
 [ -n "$current_boot" ] && [ "$applied_boot" = "$current_boot" ] || exit 0
 
 pid=$1

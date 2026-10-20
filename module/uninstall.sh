@@ -1,5 +1,7 @@
 #!/system/bin/sh
 
+setprop sys.lightflow.codex.boot 0
+
 MODDIR=${0%/*}
 MARKER=/data/adb/lightflow
 WIFI_SCAN_STATE="$MARKER/wifi_scan_always_enabled"

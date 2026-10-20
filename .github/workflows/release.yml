@@ -54,6 +54,20 @@ jobs:
           tests.test_system_guard
           tests.test_guard_deployment
 
+      - name: Test isolated Codex launch gates
+        # These process-policy cases use fixture tools/properties on both hosts.
+        # Other Codex installer tests require the actual Termux app UID/paths.
+        run: >-
+          python -m unittest
+          tests.test_codex_policy.CodexPolicyTests.test_current_property_applies_with_stale_or_missing_marker
+          tests.test_codex_policy.CodexPolicyTests.test_disabled_property_refuses_current_legacy_marker
+          tests.test_codex_policy.CodexPolicyTests.test_stale_property_refuses_current_legacy_marker
+          tests.test_codex_policy.CodexPolicyTests.test_empty_property_allows_current_legacy_marker
+          tests.test_codex_policy.CodexPolicyTests.test_failed_property_read_refuses_current_legacy_marker
+          tests.test_codex_policy.CodexPolicyTests.test_empty_current_boot_never_applies_policy
+          tests.test_codex_policy.CodexPolicyTests.test_policy_gate_and_real_process_priority
+          tests.test_codex_policy.CodexPolicyTests.test_already_lower_priority_is_preserved
+
       - name: Build and verify signed system guard
         env:
           LIGHTFLOW_GUARD_KEYSTORE_BASE64: ${{ secrets.LIGHTFLOW_GUARD_KEYSTORE_BASE64 }}

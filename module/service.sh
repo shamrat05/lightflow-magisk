@@ -35,9 +35,20 @@ while [ "$(getprop sys.boot_completed)" != 1 ]; do
   sleep 2
 done
 
+# An installed helper can launch after unlock even if refreshing its app-owned
+# marker failed during boot. This property is volatile and read once per launch.
+if [ -n "$BOOT_ID" ] && setprop sys.lightflow.codex.boot "$BOOT_ID" && \
+   [ "$(getprop sys.lightflow.codex.boot)" = "$BOOT_ID" ]; then
+  printf '%s Codex launch gate published for this boot\n' "$(date '+%F %T')" >> "$LOG"
+else
+  printf '%s Codex launch gate publication not verified; helper will check independently\n' "$(date '+%F %T')" >> "$LOG"
+fi
+
 # Install once per boot; subsequent agent launches inherit their own policy.
 sh "$MODDIR/agy-launcher.sh" >> "$LOG" 2>&1
-sh "$MODDIR/codex-launcher.sh" >> "$LOG" 2>&1
+if ! sh "$MODDIR/codex-launcher.sh" >> "$LOG" 2>&1; then
+  printf '%s Codex launcher refresh failed; existing launcher preserved\n' "$(date '+%F %T')" >> "$LOG"
+fi
 sh "$MODDIR/auto-optimize.sh" >> "$LOG" 2>&1
 sh "$MODDIR/io-policy.sh" boot >> "$LOG" 2>&1
 sh "$MODDIR/weather-policy.sh" apply >> "$LOG" 2>&1

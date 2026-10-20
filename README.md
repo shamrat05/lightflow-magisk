@@ -6,7 +6,20 @@ does not prove better performance or battery life.
 
 ## Latest release: 1.9.10
 
-## Release candidate: 1.10.0-rc.4 system guard
+## Release candidate: 1.10.0-rc.5 system guard
+
+RC5 retains RC4's corrected Vector deployment and fixes a second observed boot
+regression: the prepared Codex helper was correct, but its app-owned boot marker
+remained stale across two reboots, so new launches silently skipped scheduling.
+The enabled module now publishes a volatile boot token before launcher setup;
+the prepared helper reads it once per launch. It no longer requires updating
+an app-owned file during every boot. Interactive installation prepares the
+known helper before reboot, while existing hash/template checks preserve
+unknown launchers. A failed property read refuses scheduling, explicit `0`
+disables it, and an empty property permits the legacy marker for older modules.
+Uninstall invalidates the token before doing other work. The original boot
+write failure remains unidentified; this removes that dependency.
+
 
 RC4 corrects Vector 2.2 build 3080's actual system-server scope: the daemon
 requires the literal `system/0` entry. `android/0` is not an automatic alias,

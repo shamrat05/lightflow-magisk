@@ -531,7 +531,7 @@ class GuardDeploymentTests(unittest.TestCase):
         customize = self.module / 'customize.sh'
         customize.write_text(self.fixture_source(ROOT / 'module/customize.sh'))
         wrapper = ('abort() { printf "%s\\n" "$*" >&2; exit 73; }; '
-                   'ui_print() { :; }; set_perm() { :; }; . "$1"')
+                   'ui_print() { printf "%s\\n" "$*"; }; set_perm() { :; }; . "$1"')
         env = dict(self.env, MODPATH=str(self.module), BOOTMODE=bootmode)
         return subprocess.run([self.shell, '-c', wrapper, 'customize-fixture', str(customize)],
                               env=env, capture_output=True, text=True, timeout=20)
@@ -549,6 +549,16 @@ class GuardDeploymentTests(unittest.TestCase):
         result = self.run_customize('true')
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(self.receipt.read_text().splitlines(), [BOOT_A, self.digest])
+        self.assertFalse(self.calls('setprop'))
+
+    def test_optional_codex_preparation_failure_preserves_guard_receipt(self):
+        (self.module / 'codex-launcher.sh').write_text(
+            '#!' + self.shell + '\nexit 23\n')
+        result = self.run_customize('true')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.receipt.read_text().splitlines(), [BOOT_A, self.digest])
+        self.assertIn('Codex launch helper preparation failed', result.stdout)
+        self.assertIn('System guard preparation succeeded.', result.stdout)
         self.assertFalse(self.calls('setprop'))
 
     def test_installer_aborts_when_android_services_unavailable(self):
