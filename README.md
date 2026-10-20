@@ -6,7 +6,31 @@ does not prove better performance or battery life.
 
 ## Latest release: 1.9.10
 
-## In development: 1.10.0-rc.1 system guard
+## Release candidate: 1.10.0-rc.2 system guard
+
+The tested Codex route is `codex-wrapper → codex-core → Node → native Codex`.
+An npm update replaced the separate `codex` entry with a symlink. The old
+installer rejected it before refreshing its boot marker, so the running Codex
+kept nice -10 and access to all eight CPUs. RC2 supports the verified
+`codex-core` wrapper, keeps a separate original backup and refreshes the launch
+gate. The once-per-launch helper uses nice 5 and the available efficiency CPUs.
+Helper failures preserve CLI startup. This lets helper work yield to app UI;
+local commands may take longer. It does not promise faster app rendering.
+
+RC2 also adds persistent bootstrap/failure logs and root/shell-only
+`dumpsys activity athena lightflow` diagnostics with installed hook bits,
+real request counters, last observation/error and an isolated policy self-check.
+The check never invokes cleanup. Existing pressure decisions are unchanged;
+the new diagnostic needs the updated APK loaded after reboot.
+
+Controlled pre-fix scrolling showed Settings at 3/898 janky frames (0.33%)
+and Termux at 15/392 (3.83%). Native profiles attributed substantial Termux
+CPU time to text layout/drawing. These are separate from the shared CPU
+contention; no blanket display, scheduler or thermal overrides were applied.
+After the verified live scheduling correction, the same swipe sequence recorded
+Settings 3/928 (0.32%) and Termux 3/446 (0.67%). Termux tail frame times were
+worse (p95/p99 23/25 ms versus 16/21 ms), so this is a mixed result rather than
+proof of universally smoother rendering. See the RC2 release notes.
 
 Replaces the cached-app kill timer with two event-driven hooks in system_server,
 using the already installed Zygisk Next + Vector. LightFlow remains one Magisk
@@ -38,8 +62,10 @@ apps can increase RAM use; battery and smoothness gains are unverified.
 
 Builds and signing run in GitHub Actions. The installer rejects missing core
 files; the boot service installs/enables the bundled APK through Vector's CLI.
-Hook installation and both cleanup decisions still need post-reboot log
-verification, app-switching tests and real social notification tests.
+RC1 boot/scope and live system_server callback activity were observed on the
+device. RC2 reports actual counters so registration can be distinguished from
+execution. Notification delivery and long-term battery gains cannot be proven
+by the build or a synthetic policy check.
 Set `su -c 'setprop sys.lightflow.guard 0'` for an immediate return to stock
 OEM decisions without rebooting. Removing LightFlow disables the guard APK.
 

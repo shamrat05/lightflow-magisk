@@ -5,27 +5,70 @@ if [ "$(id -u)" = 0 ]; then
   PATH=/system/bin:/system/xbin:/debug_ramdisk:/sbin
   export PATH
 fi
-target=${LIGHTFLOW_CODEX_TARGET:-/data/data/com.termux/files/usr/bin/codex}
+bin_dir=${LIGHTFLOW_CODEX_BIN_DIR:-/data/data/com.termux/files/usr/bin}
+target=${LIGHTFLOW_CODEX_TARGET:-$bin_dir/codex}
 state=${LIGHTFLOW_ROOT_STATE:-/data/adb/lightflow}
 user_state=${LIGHTFLOW_CODEX_STATE:-/data/data/com.termux/files/home/.lightflow}
 boot_file=${LIGHTFLOW_BOOT_ID_FILE:-/proc/sys/kernel/random/boot_id}
-original=$state/codex-launcher.original
-managed=$state/codex-launcher.managed
+action=${1:-install}
+namespace=codex-launcher
+[ ! -L "$state" ] || exit 1
+# The active Termux wrapper executes codex-core. npm may replace codex with a
+# symlink to another CLI; never follow or rewrite that separate launcher.
+core=$bin_dir/codex-core
+if [ -z "${LIGHTFLOW_CODEX_TARGET:-}" ]; then
+  if [ -e "$state/codex-core-launcher.original" ] || [ -L "$state/codex-core-launcher.original" ] || \
+     [ -e "$state/codex-core-launcher.managed" ] || [ -L "$state/codex-core-launcher.managed" ]; then
+    target=$core
+  elif [ ! -L "$core" ] && [ -f "$core" ]; then
+    core_digest=$(sha256sum "$core") || exit 1
+    case "$core_digest" in
+      ecacc9dee620711203c461b926f2cb3bfda63114bf08076752ca9fcb39707217\ *) target=$core ;;
+    esac
+  fi
+fi
+[ "$target" != "$core" ] || namespace=codex-core-launcher
+# Backups from the former codex target must never become codex-core's source.
+original=$state/$namespace.original
+managed=$state/$namespace.managed
 helper=$user_state/codex-policy.sh
 helper_managed=$state/codex-policy.managed
 [ ! -L "$state" ] && [ ! -L "$original" ] && [ ! -L "$managed" ] && [ ! -L "$helper_managed" ] && [ ! -L "$target" ] && [ ! -L "$user_state" ] && [ ! -L "$helper" ] || exit 1
 [ -f "$target" ] || exit 0
-action=${1:-install}
+known_launcher() {
+  digest=$(sha256sum "$1") || return 1
+  case "$namespace:$digest" in
+    codex-launcher:5d196fa3898c12cbcccf10337c08f0219ad41197f4af49d13127893c0cfa1216\ *|\
+    codex-core-launcher:ecacc9dee620711203c461b926f2cb3bfda63114bf08076752ca9fcb39707217\ *) return 0 ;;
+  esac
+  return 1
+}
+render_managed() {
+  awk -v suffix="$1" '/^exec "\$PREFIX\/bin\/node" / {
+    print "# LightFlow: user-space scheduling, only for an enabled-module boot."
+    print "if [ -r /data/data/com.termux/files/home/.lightflow/codex-policy.sh ]; then"
+    print "  \"$PREFIX/bin/sh\" /data/data/com.termux/files/home/.lightflow/codex-policy.sh \"$$\"" suffix
+    print "fi"
+  } { print }' "$original"
+}
+matches_template() {
+  [ -f "$original" ] || return 1
+  # Both verified originals and rendered templates have one trailing newline.
+  rendered=$(render_managed "$2") || return 1
+  expected_digest=$(printf '%s\n' "$rendered" | sha256sum) || return 1
+  actual_digest=$(sha256sum "$1") || return 1
+  [ "${expected_digest%% *}" = "${actual_digest%% *}" ]
+}
+[ ! -f "$original" ] || known_launcher "$original" || exit 1
 if [ "$action" = uninstall ]; then
   [ -f "$original" ] && [ -f "$managed" ] || exit 0
 elif [ -f "$managed" ] && cmp -s "$target" "$managed"; then
   :
+elif known_launcher "$target" || matches_template "$target" ' || :' || matches_template "$target" ''; then
+  :
 else
-  digest=$(sha256sum "$target")
-  case "$digest" in
-    5d196fa3898c12cbcccf10337c08f0219ad41197f4af49d13127893c0cfa1216\ *) ;;
-    *) echo 'LightFlow: Codex launcher differs; integration skipped.'; exit 0 ;;
-  esac
+  echo 'LightFlow: Codex launcher differs; integration skipped.'
+  exit 0
 fi
 if [ "$action" != uninstall ] && [ -e "$helper" ] && { [ ! -f "$helper_managed" ] || ! cmp -s "$helper" "$helper_managed"; } && ! cmp -s "$helper" "$MODDIR/codex-policy.sh"; then
   echo 'LightFlow: preserved edited Codex policy helper.'
@@ -57,18 +100,37 @@ if [ ! -f "$original" ]; then
   fi
   mv -f "$payload/original-backup" "$original" || exit 1
 fi
-if [ ! -f "$managed" ]; then
-  awk '/^exec "\$PREFIX\/bin\/node" / {
-    print "# LightFlow: user-space scheduling, only for an enabled-module boot."
-    print "if [ -r /data/data/com.termux/files/home/.lightflow/codex-policy.sh ]; then"
-    print "  \"$PREFIX/bin/sh\" /data/data/com.termux/files/home/.lightflow/codex-policy.sh \"$$\""
-    print "fi"
-  } { print }' "$original" > "$payload/managed-backup" || exit 1
-  /system/bin/sh -n "$payload/managed-backup" || exit 1
-  mv -f "$payload/managed-backup" "$managed" || exit 1
+render_managed ' || :' > "$payload/managed-backup" || exit 1
+render_managed '' > "$payload/previous-managed" || exit 1
+/system/bin/sh -n "$payload/managed-backup" || exit 1
+if [ -f "$managed" ]; then
+  if ! cmp -s "$managed" "$payload/managed-backup"; then
+    # Accept only our exact earlier template, reconstructed from the verified
+    # same-target original. Never accept arbitrary edited managed snapshots.
+    cmp -s "$managed" "$payload/previous-managed" || exit 1
+  fi
+else
+  cp "$payload/managed-backup" "$managed" || exit 1
 fi
 cp "$original" "$payload/original" || exit 1
-cp "$managed" "$payload/managed" || exit 1
+if [ "$action" = uninstall ]; then
+  if cmp -s "$target" "$payload/managed-backup"; then
+    cp "$payload/managed-backup" "$payload/managed" || exit 1
+  elif cmp -s "$target" "$payload/previous-managed"; then
+    cp "$payload/previous-managed" "$payload/managed" || exit 1
+  else
+    cp "$managed" "$payload/managed" || exit 1
+  fi
+else
+  # The capability-dropped installer must recognize an existing old wrapper
+  # before atomically replacing it with the new fail-open template.
+  if cmp -s "$target" "$payload/managed-backup"; then
+    cp "$payload/managed-backup" "$payload/original" || exit 1
+  elif cmp -s "$target" "$payload/previous-managed"; then
+    cp "$payload/previous-managed" "$payload/original" || exit 1
+  fi
+  cp "$payload/managed-backup" "$payload/managed" || exit 1
+fi
 cp "$MODDIR/codex-policy.sh" "$payload/helper" || exit 1
 cp "$MODDIR/codex-user-install.sh" "$payload/installer" || exit 1
 if cmp -s "$helper" "$MODDIR/codex-policy.sh"; then
@@ -98,6 +160,7 @@ else
   /system/bin/sh "$payload/installer" "$action" "$payload" "$target" "$user_state" "$mode" "$context" "$owner_uid" || exit 1
 fi
 if [ "$action" != uninstall ]; then
+  mv -f "$payload/managed-backup" "$managed" || exit 1
   cp "$MODDIR/codex-policy.sh" "$payload/helper-backup" || exit 1
   mv -f "$payload/helper-backup" "$helper_managed" || exit 1
   echo 'LightFlow: Codex launch scheduling ready (nice 5, available efficiency CPUs).'

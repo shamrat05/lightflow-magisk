@@ -47,11 +47,17 @@ for pair in \
 done
 echo "Automatic battery-saver trigger (vendor/user selection): $(settings get global automatic_power_save_mode)"
 echo 'Codex launch integration:'
-codex_target=/data/data/com.termux/files/usr/bin/codex
 codex_state=/data/adb/lightflow
-if [ -f "$codex_state/codex-launcher.managed" ] && cmp -s "$codex_target" "$codex_state/codex-launcher.managed"; then
-  echo 'launcher: managed hook installed'
-else
+codex_verified=
+for codex_name in codex-core codex; do
+  codex_target=/data/data/com.termux/files/usr/bin/$codex_name
+  if [ ! -L "$codex_target" ] && [ -f "$codex_state/$codex_name-launcher.managed" ] && cmp -s "$codex_target" "$codex_state/$codex_name-launcher.managed"; then
+    echo "launcher: managed hook installed ($codex_name)"
+    codex_verified=1
+    break
+  fi
+done
+if [ -z "$codex_verified" ]; then
   echo 'launcher: not verified (unknown or user-edited launcher is preserved)'
 fi
 codex_marker=/data/data/com.termux/files/home/.lightflow/codex-boot-id

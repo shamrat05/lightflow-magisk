@@ -9,7 +9,13 @@ case "${1:-status}" in
     echo "System guard enabled: $(getprop sys.lightflow.guard)"
     pm path "$PKG" 2>/dev/null || true
     [ -x "$CLI" ] && "$CLI" scope ls "$PKG" --json
-    echo 'Registered scope does not prove hooks executed; check LightFlowGuard boot logs.'
+    diagnostic=$(dumpsys -t 5 activity athena lightflow 2>/dev/null | sed -n '/^LightFlow System Guard/,/^policySelfCheck=/p')
+    if [ -n "$diagnostic" ]; then
+      printf '%s\n' "$diagnostic"
+    else
+      echo 'Runtime diagnostic unavailable; scope registration alone does not prove hook execution.'
+      echo 'An updated guard APK takes effect after system_server restarts/reboot.'
+    fi
     exit 0 ;;
   start) ;;
   *) echo 'Usage: guard-policy.sh {start|stop|status}' >&2; exit 2 ;;

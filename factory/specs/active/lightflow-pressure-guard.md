@@ -26,3 +26,33 @@ Signed artifact verified; package, Vector scope, startup hooks and reboot runtim
 Verification: python -m unittest; pure javac policy harness; CI APK/ZIP verification;
 Vector CLI health/scope; system_server LightFlowGuard logs after reboot; same-app switching
 and social notification delivery versus exit-info/killaction history.
+
+## RC2 evidence and implementation scope
+
+Perfetto captured deadline misses in several apps, with distinct causes: actual
+app UI work, transient runnable contention and queued buffer presentation.
+Controlled Settings scrolling recorded 3/898 janky frames; Termux 15/392.
+Native CPU samples identified text layout/drawing in Termux. Stock product
+properties explain the 30 ms SF/17 ms app scheduling durations; these are not
+measured frame CPU times. No display/kernel/thermal changes are justified.
+
+Confirmed integration defect: the active Codex wrapper executes codex-core,
+while the installer checks a separate npm symlink. It exits before refreshing
+the boot gate. Native Codex consequently retained nice -10 and CPUs 0-7.
+Support only the verified core bytes, with a separate backup namespace; never
+replace the npm symlink or user edits. Preserve CLI startup on helper failure.
+Accept only known legacy managed wrapper templates when migrating snapshots.
+
+Add read-only guard counters/installation diagnostics and persistent error
+logs, without changing pressure decisions or creating polling. AMS clears Binder
+identity during dumps; preserve authorized root/shell identity only for the
+exact diagnostic and restore nested ThreadLocal state. Synthetic policy checks
+must be isolated from live state and invoke no OEM cleanup entry.
+
+Acceptance: execute a managed core with a failing helper; verify Node still
+runs. Exercise legacy upgrade/uninstall, npm preservation, user edits, tampered
+snapshots, current-boot refresh, per-target backup isolation and idempotence.
+Compile the hook against Android 35 and Xposed 82; independent diff review.
+Verify actual live native thread priority/affinity, then repeat the controlled
+scrolling measurement. Build/sign/release through GitHub Actions; distinguish
+live launcher correction from reboot-staged guard diagnostics.
