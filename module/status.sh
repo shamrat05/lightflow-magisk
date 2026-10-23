@@ -31,6 +31,7 @@ for pair in \
   'global app_standby_enabled 1' \
   'global dynamic_power_savings_enabled 1' \
   'global wifi_scan_always_enabled 0' \
+  'global ble_scan_always_enabled 0' \
   'system min_refresh_rate 60' \
   'system peak_refresh_rate 120.0' \
   'system user_refresh_rate 90'; do

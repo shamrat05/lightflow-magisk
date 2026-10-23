@@ -4,7 +4,6 @@ setprop sys.lightflow.codex.boot 0
 
 MODDIR=${0%/*}
 MARKER=/data/adb/lightflow
-WIFI_SCAN_STATE="$MARKER/wifi_scan_always_enabled"
 DISABLED_PACKAGES="$MODDIR/disabled-background-packages.conf"
 DISABLED_STATE_DIR="$MARKER/disabled-packages"
 MEMORY_STATE_DIR="$MARKER/memory"
@@ -25,6 +24,7 @@ sh "$MODDIR/io-policy.sh" restore
 sh "$MODDIR/weather-policy.sh" restore
 sh "$MODDIR/sleep-log-policy.sh" restore
 sh "$MODDIR/oem-diagnostics-policy.sh" restore
+sh "$MODDIR/radio-scan-policy.sh" restore
 
 # Restore only the app-ops this module touches. Refresh and animation settings
 # are intentionally left at the user's current values.
@@ -64,12 +64,4 @@ sh "$MODDIR/power-policy.sh" restore
 sh "$MODDIR/power-policy.sh" restore-legacy-trigger
 rmdir "$POWER_STATE_DIR" >/dev/null 2>&1
 
-if [ -f "$WIFI_SCAN_STATE" ]; then
-  wifi_scan_state=$(head -n 1 "$WIFI_SCAN_STATE")
-  case "$wifi_scan_state" in
-    null|'') settings delete global wifi_scan_always_enabled >/dev/null 2>&1 ;;
-    0|1) settings put global wifi_scan_always_enabled "$wifi_scan_state" >/dev/null 2>&1 ;;
-  esac
-  rm -f "$WIFI_SCAN_STATE"
-fi
 rm -f /data/adb/lightflow.log

@@ -6,7 +6,22 @@ does not prove better performance or battery life.
 
 ## Latest release: 1.9.10
 
-## Release candidate: 1.10.0-rc.6.2 optional diagnostics cleanup
+## Release candidate: 1.10.0-rc.6.3 radio discovery policy
+
+RC6.3 adds verified, reversible control of Wi-Fi and BLE discovery while the
+corresponding radio is off. Both original settings are saved before writes;
+failed reads/backups leave that setting unchanged. Restore preserves later
+user choices. The legacy Wi-Fi backup is reused. Settings commands have a
+five-second deadline, and the policy runs once at boot without a monitor.
+Ordinary Wi-Fi/Bluetooth connections remain enabled. Discovery/location
+features that need scanning while those radios are off become unavailable.
+
+The actual device passed apply, restore and reapply with the existing Wi-Fi
+connection retained. This verifies policy operation, not a measured battery
+percentage gain. The signed RC5 system guard is unchanged. See the
+[RC6.3 release notes](RELEASE-v1.10.0-rc.6.3.md).
+
+## Previous optional diagnostics cleanup
 
 RC6.2 uses the audited firmware's own switches to stop the optional native
 `ostatsd`, `ostats_tpd`, and `ostats_pullerd` collectors. It records ownership,

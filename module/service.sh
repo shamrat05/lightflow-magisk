@@ -13,7 +13,6 @@ MARKER=/data/adb/lightflow
 BOOT_ID=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)
 NOTIFICATION_PACKAGES="$MODDIR/notification-packages.conf"
 DISABLED_PACKAGES="$MODDIR/disabled-background-packages.conf"
-WIFI_SCAN_STATE="$MARKER/wifi_scan_always_enabled"
 DISABLED_STATE_DIR="$MARKER/disabled-packages"
 MEMORY_STATE_DIR="$MARKER/memory"
 POWER_STATE_DIR="$MARKER/power"
@@ -78,27 +77,9 @@ case "$sdk" in
   *) [ "$sdk" -ge 30 ] || settings put global wifi_sleep_policy 2 >/dev/null 2>&1 ;;
 esac
 
-# Wi-Fi scanning while Wi-Fi is off is separate from keeping an established
-# connection alive. It repeatedly wakes the radio for location and network
-# discovery, so it costs battery without helping FCM or an active Wi-Fi link.
-# Preserve the prior value once so uninstall can restore the user's setting.
-# The settings service can be unavailable briefly during boot; never persist
-# that error as though it were a setting value.
-if [ -f "$WIFI_SCAN_STATE" ]; then
-  wifi_scan_state=$(head -n 1 "$WIFI_SCAN_STATE")
-  case "$wifi_scan_state" in
-    0|1|null) ;;
-    *) rm -f "$WIFI_SCAN_STATE" ;;
-  esac
-fi
-
-if [ ! -f "$WIFI_SCAN_STATE" ]; then
-  wifi_scan_state=$(settings get global wifi_scan_always_enabled 2>/dev/null)
-  case "$wifi_scan_state" in
-    0|1|null) printf '%s\n' "$wifi_scan_state" > "$WIFI_SCAN_STATE" ;;
-  esac
-fi
-settings put global wifi_scan_always_enabled 0 >/dev/null 2>&1
+# Back up and verify Wi-Fi/BLE discovery switches independently. A failed
+# settings read or backup must not be followed by an unowned settings write.
+sh "$MODDIR/radio-scan-policy.sh" apply >> "$LOG" 2>&1
 
 # RMX3741 has 8 GB RAM with LZ4 ZRAM. Keep the kernel's modern, low-overhead
 # reclaim path available without changing the vendor LMKD thresholds, ZRAM
