@@ -41,6 +41,27 @@ jobs:
           sudo mkdir -p /system/bin
           sudo ln -sfn /bin/sh /system/bin/sh
 
+      - name: Test native read-only bind helper in an isolated mount namespace
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Werror native/hosts-bind.cpp -o "$RUNNER_TEMP/hosts-bind-host"
+          sudo unshare --mount --propagation private env \
+            LIGHTFLOW_HOSTS_BIND_TEST_BINARY="$RUNNER_TEMP/hosts-bind-host" \
+            python3 -m unittest tests.test_hosts_bind
+
+      - name: Build Android native hosts helper
+        run: |
+          ndk_version=27.2.12479018
+          toolchain="$ANDROID_HOME/ndk/$ndk_version/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          if [[ ! -x "$toolchain/aarch64-linux-android30-clang++" ]]; then
+            sdkmanager "ndk;$ndk_version"
+          fi
+          mkdir -p module/bin
+          "$toolchain/aarch64-linux-android30-clang++" -std=c++17 -O2 -Wall -Wextra -Werror \
+            -fPIE -pie -fstack-protector-strong -D_FORTIFY_SOURCE=2 -static-libstdc++ \
+            -Wl,-z,relro,-z,now native/hosts-bind.cpp -o module/bin/hosts-bind
+          chmod 0755 module/bin/hosts-bind
+          file module/bin/hosts-bind
+
       - name: Run policy tests
         # Codex/power fixtures exercise Termux-only paths and are run on the
         # device. These portable policy tests cover the packaged module here.

@@ -203,6 +203,8 @@ class GuardDeploymentTests(unittest.TestCase):
         (self.module / 'memory-watchdog.sh').write_text(
             '#!' + self.shell + '\nexec "' + str(self.bin / 'watchdog') + '" "$@"\n')
         (self.module / 'module.prop').write_text('id=lightflow\n')
+        (self.module / 'bin').mkdir()
+        (self.module / 'bin/hosts-bind').write_text('native helper fixture\n')
 
     def fixture_source(self, path):
         source = path.read_text()
@@ -673,6 +675,14 @@ class GuardDeploymentTests(unittest.TestCase):
         self.assertEqual(self.receipt.read_text().splitlines(),
                          [BOOT_A, self.digest, str(self.installed)])
         self.assertFalse(self.calls('setprop'))
+
+    def test_installer_rejects_missing_native_helper_before_preparation(self):
+        (self.module / 'bin/hosts-bind').unlink()
+        result = self.run_customize('true')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('missing bin/hosts-bind', result.stderr)
+        self.assertFalse(self.calls('pm', ('install',)))
+        self.assertFalse(self.receipt.exists())
 
     def test_optional_codex_preparation_failure_preserves_guard_receipt(self):
         (self.module / 'codex-launcher.sh').write_text(

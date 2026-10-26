@@ -19,6 +19,10 @@ test -s "$module_dir/guard.apk" || {
   echo 'Build the signed guard APK in GitHub Actions before packaging LightFlow.' >&2
   exit 1
 }
+test -x "$module_dir/bin/hosts-bind" || {
+  echo 'Build the native hosts bind helper in GitHub Actions before packaging.' >&2
+  exit 1
+}
 mkdir -p "$dist_dir"
 rm -f "$output"
 rm -f "$camera_output"

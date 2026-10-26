@@ -6,9 +6,9 @@ does not prove better performance or battery life.
 
 ## Latest release: 1.9.10
 
-## Release candidate: 1.10.0-rc.6.5 hosts parsing overhead
+## Release candidate: 1.10.0-rc.6.6 hosts parsing overhead
 
-RC6.5 adds an optional boot-time compact overlay for this device's existing
+RC6.6 adds an optional boot-time compact overlay for this device's existing
 large `root-hosts-blocker` list. It groups up to 16 zero-address blocked names
 per line, verifies every ordered address mapping, and leaves the source list
 untouched. The overlay is read-only, has no daemon or polling, and is removed
@@ -19,7 +19,10 @@ compact file and higher latency again after restoration. This is a measured
 lookup improvement, not a measured standby battery gain. Blocked aliases can
 report the first name of their group when callers request `AI_CANONNAME`;
 their `0.0.0.0` addresses remain blocked. Localhost and nonzero records retain
-their original lines. See [RC6.5 release notes](RELEASE-v1.10.0-rc.6.5.md).
+their original lines. A small Actions-built native helper binds and verifies
+the read-only file through direct syscalls; it does not depend on mount tools
+reading filtered `/proc/mounts`. RC6.5's shell-mount deployment rolled back on
+this device and is superseded. See [RC6.6 release notes](RELEASE-v1.10.0-rc.6.6.md).
 
 ## Previous optional Eyecon removal
 

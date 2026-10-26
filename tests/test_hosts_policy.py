@@ -35,17 +35,13 @@ class HostsPolicyTests(unittest.TestCase):
         for name in ['chown', 'chcon']:
             self.command(name, '#!/system/bin/sh\nexit 0\n')
         self.command('getprop', '#!/system/bin/sh\ncase "$1" in *model) echo RMX3741;; *sdk) echo 35;; esac\n')
-        self.command('busybox', '''#!/system/bin/sh
+        self.command('hosts-bind', '''#!/system/bin/sh
 printf '%s\n' "$*" >> "$MOCK_CALLS"
-case "$*" in
-  'mount -o bind '*) rm -f "$5"; ln "$4" "$5" ;;
-  'mount -o remount,bind,ro '*)
-    if [ "$REPLACE_ON_RO_FAILURE" = 1 ]; then
-      rm -f "$4"; printf '127.0.0.1 replacement\n' > "$4"
-    fi
-    [ "$FAIL_RO" != 1 ] ;;
-  *) exit 2 ;;
-esac
+rm -f "$2"; ln "$1" "$2"
+if [ "$REPLACE_ON_RO_FAILURE" = 1 ]; then
+  rm -f "$2"; printf '127.0.0.1 replacement\n' > "$2"
+fi
+[ "$FAIL_RO" != 1 ]
 ''')
         self.command('umount', '''#!/system/bin/sh
 printf 'umount %s\n' "$1" >> "$MOCK_CALLS"
@@ -56,7 +52,7 @@ ln "$MOCK_UNDERLYING" "$1"
                         LIGHTFLOW_HOSTS_STATE=str(self.state),
                         LIGHTFLOW_HOSTS_SOURCE=str(self.source),
                         LIGHTFLOW_HOSTS_TARGET=str(self.target),
-                        LIGHTFLOW_HOSTS_BUSYBOX=str(self.bin / 'busybox'),
+                        LIGHTFLOW_HOSTS_BINDER=str(self.bin / 'hosts-bind'),
                         MOCK_CALLS=str(self.calls), MOCK_UNDERLYING=str(self.source), FAIL_RO='')
 
     def command(self, name, text):

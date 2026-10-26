@@ -6,7 +6,7 @@
 if [ "${BOOTMODE:-false}" != true ]; then
   abort 'Install LightFlow from Magisk after Android and Vector are running; recovery cannot prepare the injected guard.'
 fi
-for required in service.sh action.sh uninstall.sh guard-policy.sh guard.apk memory-pressure-policy.sh memory-watchdog.sh codex-launcher.sh codex-policy.sh codex-user-install.sh oem-diagnostics-policy.sh radio-scan-policy.sh; do
+for required in service.sh action.sh uninstall.sh guard-policy.sh guard.apk memory-pressure-policy.sh memory-watchdog.sh codex-launcher.sh codex-policy.sh codex-user-install.sh oem-diagnostics-policy.sh radio-scan-policy.sh hosts-policy.sh bin/hosts-bind; do
   if [ ! -s "$MODPATH/$required" ]; then
     abort "LightFlow archive incomplete: missing $required"
   fi
@@ -17,6 +17,8 @@ if command -v set_perm >/dev/null 2>&1; then
     set_perm "$script" 0 0 0755
   done
   set_perm "$MODPATH/module.prop" 0 0 0644
+  set_perm "$MODPATH/bin" 0 0 0755
+  set_perm "$MODPATH/bin/hosts-bind" 0 0 0755
   for config in "$MODPATH"/*.conf; do
     [ -f "$config" ] || continue
     set_perm "$config" 0 0 0644
@@ -24,6 +26,7 @@ if command -v set_perm >/dev/null 2>&1; then
 else
   chmod 0755 "$MODPATH"/*.sh 2>/dev/null || true
   chmod 0644 "$MODPATH/module.prop" "$MODPATH"/*.conf 2>/dev/null || true
+  chmod 0755 "$MODPATH/bin" "$MODPATH/bin/hosts-bind" || abort 'Native hosts helper permissions failed.'
 fi
 
 # Prepare the APK before the reboot that loads it into system_server.

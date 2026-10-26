@@ -1,5 +1,9 @@
 # LightFlow v1.10.0-rc.6.5
 
+Superseded by RC6.6. Device deployment found a read-only remount-tool crash;
+the policy rolled back and retained the original hosts file. Use RC6.6's
+Actions-built native bind helper.
+
 Large per-line hosts lists add parsing work to ordinary Android DNS lookups.
 This release adds a read-only compact overlay for the audited RMX3741 Android
 15 device's existing `root-hosts-blocker` list. Up to 16 zero-address names

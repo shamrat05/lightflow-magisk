@@ -112,22 +112,21 @@ new_size=$(stat -c %s "$tmp") || exit 1
   [ "$source_hash" = "$(digest "$target")" ] &&
   [ "$live_identity" = "$(identity "$target")" ] || exit 1
 
-# Magisk's BusyBox handles read-only bind remounts on this ROM. Toybox's mount
-# reports EBUSY for the remount; do not silently leave a writable overlay.
-bb=${LIGHTFLOW_HOSTS_BUSYBOX:-/debug_ramdisk/.magisk/busybox/busybox}
-[ -x "$bb" ] || bb=/data/adb/magisk/busybox
-[ -x "$bb" ] || exit 1
+# Mount helpers can fail/crash while consulting filtered /proc/mounts. The
+# Actions-built helper uses direct syscalls and verifies inode + read-only state.
+MODDIR=${0%/*}
+binder=${LIGHTFLOW_HOSTS_BINDER:-$MODDIR/bin/hosts-bind}
+[ -x "$binder" ] || exit 1
 chmod 0644 "$tmp" && chown 0:0 "$tmp" &&
   chcon u:object_r:system_file:s0 "$tmp" || exit 1
 mv "$tmp" "$state/compact" || exit 1
-"$bb" mount -o bind "$state/compact" "$target" || exit 1
-if ! "$bb" mount -o remount,bind,ro "$target"; then
-  remove_owned_mount
+if ! "$binder" "$state/compact" "$target"; then
+  remove_owned_mount || echo 'Hosts formatting: owned mount rollback failed; retry restore' >&2
   exit 1
 fi
 if [ "$(identity "$target")" != "$(identity "$state/compact")" ] ||
    [ "$(digest "$target")" != "$(digest "$state/compact")" ]; then
-  remove_owned_mount
+  remove_owned_mount || echo 'Hosts formatting: owned mount rollback failed; retry restore' >&2
   exit 1
 fi
 printf '%s\n' "$source_hash" > "$state/source.sha256"

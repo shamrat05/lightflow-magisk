@@ -1,6 +1,7 @@
 dist/
 guard/build/
 module/guard.apk
+module/bin/
 .work/
 *.zip
 artifacts/
