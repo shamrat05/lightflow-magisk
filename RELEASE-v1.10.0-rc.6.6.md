@@ -1,5 +1,9 @@
 # LightFlow v1.10.0-rc.6.6
 
+Superseded by RC6.7's mount-propagation isolation. On this device RC6.6's
+overlay could also appear at the blocklist source path while active; restore
+recovered the original view. Use RC6.7 to keep the source writable.
+
 Large per-line hosts lists add parsing work to ordinary Android DNS lookups.
 This release provides the verified compact-overlay formatter from RC6.5 with
 a native read-only bind helper built in GitHub Actions for Android arm64.

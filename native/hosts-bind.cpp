@@ -38,6 +38,15 @@ int main(int argc, char** argv) {
     }
     char pinned_source[64];
     std::snprintf(pinned_source, sizeof(pinned_source), "/proc/self/fd/%d", fd);
+    // Magisk file binds can share a propagation group with their backing
+    // filesystem. Isolate this leaf before overmounting it, otherwise the
+    // compact overlay can also hide the blocklist owner's writable source.
+    if (mount(nullptr, argv[2], nullptr, MS_PRIVATE, nullptr)) {
+        const int saved = errno;
+        close(fd);
+        errno = saved;
+        return fail("isolate target");
+    }
     if (mount(pinned_source, argv[2], nullptr, MS_BIND, nullptr)) {
         const int saved = errno;
         close(fd);

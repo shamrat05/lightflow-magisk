@@ -20,12 +20,25 @@ class HostsBindTests(unittest.TestCase):
         self.source.write_text('0.0.0.0 ads.invalid\n')
         self.target.write_text('original\n')
         self.mounted = False
+        self.extra_mounts = []
+        # Android's hosts target is already a Magisk file bind. Match that
+        # precondition without changing the enclosing private test namespace.
+        libc = ctypes.CDLL(None, use_errno=True)
+        libc.mount.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p,
+                               ctypes.c_ulong, ctypes.c_void_p]
+        libc.mount.restype = ctypes.c_int
+        self.assertEqual(libc.mount(os.fsencode(self.target), os.fsencode(self.target),
+                                    None, 4096, None), 0)
+        self.extra_mounts.append(self.target)
 
     def tearDown(self):
         if hasattr(self, 'tmp'):
             if self.mounted:
                 libc = ctypes.CDLL(None, use_errno=True)
                 self.assertEqual(libc.umount2(os.fsencode(self.target), 2), 0)
+            for path in reversed(self.extra_mounts):
+                libc = ctypes.CDLL(None, use_errno=True)
+                self.assertEqual(libc.umount2(os.fsencode(path), 2), 0)
             self.tmp.cleanup()
 
     def call(self, *args):
@@ -50,6 +63,28 @@ class HostsBindTests(unittest.TestCase):
         link.symlink_to(self.source)
         self.assertNotEqual(self.call(link, self.target).returncode, 0)
         self.assertEqual(self.target.read_text(), 'original\n')
+
+    def test_shared_target_does_not_shadow_original_writable_blocklist(self):
+        shared = self.base / 'shared'
+        shared.mkdir()
+        original = shared / 'original'
+        original.write_text('original owner data\n')
+        libc = ctypes.CDLL(None, use_errno=True)
+        libc.mount.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p,
+                               ctypes.c_ulong, ctypes.c_void_p]
+        libc.mount.restype = ctypes.c_int
+        self.assertEqual(libc.mount(os.fsencode(shared), os.fsencode(shared), None, 4096, None), 0)
+        self.extra_mounts.append(shared)
+        self.assertEqual(libc.mount(None, os.fsencode(shared), None, 1 << 20, None), 0)
+        self.assertEqual(libc.mount(os.fsencode(original), os.fsencode(self.target), None, 4096, None), 0)
+        self.extra_mounts.append(self.target)
+        result = self.call(self.source, self.target)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.mounted = True
+        self.assertEqual(self.target.read_bytes(), self.source.read_bytes())
+        self.assertEqual(original.read_text(), 'original owner data\n')
+        fd = os.open(original, os.O_WRONLY)
+        os.close(fd)
 
     def test_target_symlink_is_rejected(self):
         link = self.base / 'link'
