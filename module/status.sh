@@ -86,6 +86,7 @@ sh "$MODDIR/io-policy.sh" status
 sh "$MODDIR/weather-policy.sh" status
 sh "$MODDIR/sleep-log-policy.sh" status
 sh "$MODDIR/oem-diagnostics-policy.sh" status
+sh "$MODDIR/hosts-policy.sh" status
 echo "Memory availability and pressure:"
 grep -E 'MemAvailable:|SwapTotal:|SwapFree:' /proc/meminfo
 cat /proc/pressure/memory /proc/pressure/cpu

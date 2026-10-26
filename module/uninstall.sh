@@ -25,6 +25,7 @@ sh "$MODDIR/weather-policy.sh" restore
 sh "$MODDIR/sleep-log-policy.sh" restore
 sh "$MODDIR/oem-diagnostics-policy.sh" restore
 sh "$MODDIR/radio-scan-policy.sh" restore
+sh "$MODDIR/hosts-policy.sh" restore
 
 # Restore only the app-ops this module touches. Refresh and animation settings
 # are intentionally left at the user's current values.

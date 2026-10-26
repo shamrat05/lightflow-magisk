@@ -50,6 +50,7 @@ jobs:
           tests.test_thermal_memory_policy
           tests.test_wifi_diagnostics
           tests.test_radio_scan_policy
+          tests.test_hosts_policy
           tests.test_consumer_package_policy
           tests.test_oem_diagnostics_policy
           tests.test_notification_package_policy
