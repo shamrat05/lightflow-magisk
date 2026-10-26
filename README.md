@@ -6,7 +6,19 @@ does not prove better performance or battery life.
 
 ## Latest release: 1.9.10
 
-## Release candidate: 1.10.0-rc.6.3 radio discovery policy
+## Release candidate: 1.10.0-rc.6.4 optional Eyecon removal
+
+RC6.4 adds the owner's unused Eyecon caller-ID app to the optional package
+policy for user 0. Its background services, jobs and sensor listeners stop
+while its installed data is retained. Eyecon caller identification is
+unavailable while disabled. The existing package policy preserves packages
+that were already user-disabled when LightFlow first records their state.
+
+Live verification found Eyecon disabled with no running process or service.
+Battery-life improvement has not been measured. See the
+[RC6.4 release notes](RELEASE-v1.10.0-rc.6.4.md).
+
+## Previous radio discovery policy
 
 RC6.3 adds verified, reversible control of Wi-Fi and BLE discovery while the
 corresponding radio is off. Both original settings are saved before writes;
