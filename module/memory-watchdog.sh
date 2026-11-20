@@ -1,5 +1,13 @@
 #!/system/bin/sh
 # Compatibility stop entry for upgrades. Never start another cleanup timer.
+case "${1:-status}" in
+  status)
+    echo 'LightFlow: periodic cached-app eviction retired.'
+    exit 0 ;;
+  stop) ;;
+  *) echo 'Usage: memory-watchdog.sh status|stop' >&2; exit 2 ;;
+esac
+
 # Validate exact argv before signalling; a stored PID can be reused after boot.
 /system/bin/ps -A -o PID,ARGS | while read -r pid interpreter path mode rest; do
   case "$pid" in ''|*[!0-9]*) continue ;; esac
